@@ -1,15 +1,16 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tasks as mockTasks } from '@/mock';
 import { api } from '@/api';
-import AiButton from '@/components/AiButton/index.vue';
+
 
 /* ---------------- 任务列表（后端统一异步任务中心：真实任务 + 演示种子） ---------------- */
 const list = reactive<any[]>([]);
 const loading = ref(false);
 
-function normalize(t: any) {
+const normalize = (t: any) => {
   return {
     id: t.id,
     taskType: t.task_type ?? '',
@@ -22,9 +23,9 @@ function normalize(t: any) {
     error: t.error ?? null,
     real: !!t.real,
   };
-}
+};
 
-async function load() {
+const load = async () => {
   loading.value = true;
   try {
     const data: any[] = await api.listTasks();
@@ -36,20 +37,20 @@ async function load() {
     loading.value = false;
   }
   subscribeRunning();
-}
+};
 
 /* ---------------- 运行中任务 SSE 订阅（11.1.5 完成推送，替代被动轮询） ---------------- */
 const streams = new Map<string, AbortController>();
 
-function subscribeRunning() {
+const subscribeRunning = () => {
   for (const t of list) {
     if (t.real && (t.status === 'running' || t.status === 'queued') && !streams.has(t.id)) {
       watch(t.id);
     }
   }
-}
+};
 
-async function watch(taskId: string) {
+const watch = async (taskId: string) => {
   const ctrl = new AbortController();
   streams.set(taskId, ctrl);
   try {
@@ -94,7 +95,7 @@ async function watch(taskId: string) {
   } finally {
     streams.delete(taskId);
   }
-}
+};
 
 onBeforeUnmount(() => streams.forEach(c => c.abort()));
 
@@ -116,15 +117,15 @@ const statusMeta: Record<string, { icon: string; text: string; cls: string }> = 
 /* ---------------- 结果弹窗（规范 7.3：800px） ---------------- */
 const resultVisible = ref(false);
 const resultTask = ref<any>(null);
-function viewResult(t: any) {
+const viewResult = (t: any) => {
   resultTask.value = t;
   resultVisible.value = true;
-}
-function download(file: string) {
+};
+const download = (file: string) => {
   ElMessage.success(`开始下载 ${file}（演示）`);
-}
+};
 
-async function cancelTask(t: any) {
+const cancelTask = async (t: any) => {
   try {
     await ElMessageBox.confirm('取消后任务停止执行且不可恢复，确认取消？', '取消任务', {
       type: 'warning',
@@ -148,9 +149,9 @@ async function cancelTask(t: any) {
     list.splice(list.indexOf(t), 1);
     ElMessage.success('任务已取消');
   }
-}
+};
 
-async function retryTask(t: any) {
+const retryTask = async (t: any) => {
   if (t.real) {
     try {
       await api.retryTask(t.id);
@@ -164,13 +165,22 @@ async function retryTask(t: any) {
     t.progress = 5;
     ElMessage.info('已重新提交任务（演示）');
   }
-}
+};
 
 load();
 </script>
 
 <template>
   <div class="task-page">
+    <PageHero
+      index="05"
+      title="任务中心"
+      sub="长任务统一编排：状态查询 · 进度订阅 · 检查点恢复"
+      :tags="[
+        { text: '异步执行', kind: 'blue' },
+        { text: '可恢复', kind: 'green' },
+      ]"
+    />
     <!-- 统计卡片 3列 -->
     <div class="stat-row">
       <div class="stat-card">
@@ -193,8 +203,9 @@ load();
       </div>
     </div>
 
-    <!-- 任务列表（卡片式） -->
-    <div v-loading="loading" class="task-list">
+    <!-- 任务列表（卡片式）：首屏骨架，刷新时保留旧数据不闪 -->
+    <el-skeleton class="task-list fashion-card" :loading="loading && !list.length" animated>
+      <template #default>
       <div
         v-for="t in list"
         :key="t.id"
@@ -228,7 +239,7 @@ load();
           statusMeta[t.status]?.text
         }}</span>
         <div class="task-ops">
-          <AiButton
+          <el-button
             v-if="t.status === 'running' || t.status === 'queued'"
             text
             size="small"
@@ -236,8 +247,8 @@ load();
             @click="cancelTask(t)"
           >
             取消任务
-          </AiButton>
-          <AiButton
+          </el-button>
+          <el-button
             v-if="t.status === 'done'"
             text
             type="primary"
@@ -245,8 +256,8 @@ load();
             @click="viewResult(t)"
           >
             查看结果
-          </AiButton>
-          <AiButton
+          </el-button>
+          <el-button
             v-if="t.status === 'failed'"
             text
             type="primary"
@@ -254,7 +265,7 @@ load();
             @click="retryTask(t)"
           >
             🔄 重新尝试
-          </AiButton>
+          </el-button>
         </div>
       </div>
 
@@ -264,7 +275,8 @@ load();
         <div class="empty-title">暂无内容</div>
         <div class="empty-sub">在对话中 @ 效果图渲染 或批量导入即可创建异步任务</div>
       </div>
-    </div>
+      </template>
+    </el-skeleton>
 
     <!-- 查看结果弹窗 800px -->
     <el-dialog v-model="resultVisible" title="任务结果" width="800px">
@@ -282,13 +294,13 @@ load();
             <div style="color: #64748b; margin-top: 8px">演示模式无实体成图</div>
           </div>
           <div style="text-align: center; margin-top: 12px">
-            <AiButton
+            <el-button
               v-if="resultTask.result?.image_url"
               type="primary"
               @click="download(resultTask.result.image_url)"
             >
               下载高清图
-            </AiButton>
+            </el-button>
           </div>
         </div>
         <!-- 批量导入类结果（真实汇总） -->
@@ -328,13 +340,13 @@ load();
               >❌ 失败 <b style="color: #ef4444">{{ resultTask.result?.failed ?? 0 }}</b> 条</span
             >
           </div>
-          <AiButton type="primary" plain @click="download('失败明细.csv')">
+          <el-button type="primary" plain @click="download('失败明细.csv')">
             下载失败明细.csv
-          </AiButton>
+          </el-button>
         </div>
       </template>
       <template #footer>
-        <AiButton @click="resultVisible = false"> 关闭 </AiButton>
+        <el-button @click="resultVisible = false"> 关闭 </el-button>
       </template>
     </el-dialog>
   </div>
@@ -351,10 +363,21 @@ load();
   margin-bottom: 24px;
 }
 .stat-card {
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
+  background: var(--reai-card);
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: var(--reai-shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--reai-gradient-accent);
 }
 .stat-num {
   font-size: 24px;
@@ -374,6 +397,7 @@ load();
   flex-direction: column;
   gap: 8px;
   min-height: 120px;
+  padding: 14px;
 }
 .task-row {
   background: var(--reai-bg-gray);

@@ -8,10 +8,14 @@ Key 来源：services/ai_config.effective_llm() —— 当前用户在前端「�
 - llm_stream(messages): 异步流式返回增量文本；连接/推理异常抛 LLMUnavailable，
   由端点层降级为演示模式（保证无 GPU 开发机可完整演示）
 """
+import logging
+
 import httpx
 
 from app.config import settings
 from app.services.ai_config import effective_llm
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "你是房地产销售团队的 AI 助手。职责：户型讲解、文案生成、政策问答、房源分析。"
@@ -47,8 +51,9 @@ async def llm_available() -> bool:
 
 async def llm_stream(messages: list[dict]):
     """流式对话：yield 增量文本片段。服务不可用/中断时抛 LLMUnavailable"""
+    cfg = effective_llm()
     payload = {
-        "model": effective_llm()["model"],
+        "model": cfg["model"],
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}, *messages],
         "stream": True,
         "temperature": 0.7,
@@ -57,6 +62,10 @@ async def llm_stream(messages: list[dict]):
         async with _client() as c:
             async with c.stream("POST", "/chat/completions", json=payload) as r:
                 if r.status_code != 200:
+                    # 落日志便于定位（模型名写错 / 服务未启动 / Key 失效），否则故障静默降级无迹可循
+                    body = (await r.aread()).decode("utf-8", "replace")[:200]
+                    logger.warning("LLM 生成失败 HTTP %s | model=%s | base_url=%s | %s",
+                                   r.status_code, cfg.get("model"), cfg.get("base_url"), body)
                     raise LLMUnavailable(f"LLM HTTP {r.status_code}")
                 async for line in r.aiter_lines():
                     if not line.startswith("data:"):
@@ -73,4 +82,6 @@ async def llm_stream(messages: list[dict]):
     except LLMUnavailable:
         raise
     except Exception as e:  # 网络中断/超时/JSON 异常 → 统一降级
+        logger.warning("LLM 调用异常，已降级兜底 | model=%s | base_url=%s | %s: %s",
+                       cfg.get("model"), cfg.get("base_url"), type(e).__name__, e)
         raise LLMUnavailable(str(e)) from e

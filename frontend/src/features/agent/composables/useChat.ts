@@ -8,7 +8,7 @@ import type { Message, Reference, MessageUpdate } from '../types/agent';
 import ElMessage from 'element-plus/es/components/message';
 import ElMessageBox from 'element-plus/es/components/message-box';
 
-export function useChat() {
+export const useChat = () => {
   const sessionStore = useSessionStore();
   const agentStateStore = useAgentStateStore();
   const skillStore = useSkillStore();
@@ -32,35 +32,35 @@ export function useChat() {
 
   const phaseText = computed(() => agentStateStore.status.phaseText);
 
-  function updateCanSend() {
+  const updateCanSend = () => {
     canSend.value = draft.value.trim().length > 0;
-  }
+  };
 
-  function onInput() {
+  const onInput = () => {
     skillStore.toggleSkillMenu(draft.value.endsWith('@'));
     if (!draft.value.includes('@')) {
       skillStore.clearActiveSkill();
     }
     updateCanSend();
-  }
+  };
 
-  function pickSkill(name: string) {
+  const pickSkill = (name: string) => {
     skillStore.setActiveSkill(name);
     draft.value = draft.value.replace(/@$/, '');
     skillStore.toggleSkillMenu(false);
     draft.value += `${name} `;
     updateCanSend();
-  }
+  };
 
-  function addAttachment() {
+  const addAttachment = () => {
     attachments.value.push(`attachment_${Date.now()}.jpg`);
-  }
+  };
 
-  function removeAttachment(index: number) {
+  const removeAttachment = (index: number) => {
     attachments.value.splice(index, 1);
-  }
+  };
 
-  async function sendMessage() {
+  const sendMessage = async () => {
     if (!canSend.value || status.value === 'streaming') return;
 
     const content = draft.value.trim();
@@ -183,9 +183,9 @@ export function useChat() {
       ElMessage.error('发送失败，请重试');
       agentStateStore.setError();
     }
-  }
+  };
 
-  async function clearContext() {
+  const clearContext = async () => {
     try {
       await ElMessageBox.confirm(
         '将清空本会话的短期记忆（多轮上下文），开始全新话题。长期记忆不受影响。',
@@ -200,7 +200,7 @@ export function useChat() {
     } catch {
       // cancelled
     }
-  }
+  };
 
   return {
     draft,
@@ -217,4 +217,4 @@ export function useChat() {
     streaming: status.value === 'streaming',
     phaseText,
   };
-}
+};

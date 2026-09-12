@@ -9,7 +9,8 @@ body,
   margin: 0;
   font-family: var(--el-font-family);
   color: var(--reai-text-main);
-  background: var(--reai-bg-neutral);
+  background: var(--reai-page-bg);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -76,7 +77,167 @@ body,
 /* 通用白卡 */
 .soft-card {
   background: var(--reai-card);
-  border-radius: 12px;
+  border-radius: 16px;
   box-shadow: var(--reai-shadow-md);
   border: none;
+}
+
+/* ============================================================
+ * 时尚换肤工具类（对标截图风格，业务页面按需选用）
+ * ============================================================ */
+
+/* 顶部渐变 accent 条的时尚卡片 */
+.fashion-card {
+  position: relative;
+  background: var(--reai-card);
+  border-radius: 16px;
+  box-shadow: var(--reai-shadow-md);
+  overflow: hidden;
+}
+.fashion-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--reai-gradient-accent);
+}
+
+/* 粉彩小标签 */
+.pastel-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pastel-tag--blue {
+  background: var(--reai-tag-blue-bg);
+  color: var(--reai-tag-blue-fg);
+}
+.pastel-tag--yellow {
+  background: var(--reai-tag-yellow-bg);
+  color: var(--reai-tag-yellow-fg);
+}
+.pastel-tag--green {
+  background: var(--reai-tag-green-bg);
+  color: var(--reai-tag-green-fg);
+}
+.pastel-tag--purple {
+  background: var(--reai-tag-purple-bg);
+  color: var(--reai-tag-purple-fg);
+}
+.pastel-tag--red {
+  background: var(--reai-tag-red-bg);
+  color: var(--reai-tag-red-fg);
+}
+/* 描边橙色胶囊（如「今日待复习」） */
+.pastel-tag--orange {
+  background: var(--reai-tag-orange-bg);
+  color: var(--reai-tag-orange-fg);
+  border: 1px solid var(--reai-tag-orange-border);
+  height: 28px;
+  padding: 0 14px;
+  font-weight: 600;
+}
+.pastel-tag--orange b {
+  margin-left: 4px;
+  background: #f05252;
+  color: #fff;
+  font-size: 11px;
+  border-radius: 9999px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+
+/* 描边胶囊小按钮（如「筛选」） */
+.pill-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid #b9c6f8;
+  color: var(--reai-primary);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pill-ghost:hover {
+  background: var(--reai-primary-soft);
+  box-shadow: var(--reai-shadow-sm);
+}
+
+/* 分段控制器（截图「刷题模式」风）：容器浅底 + 选中实心蓝 */
+.seg-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9999px;
+  background: #e6e9f7;
+  font-size: 13px;
+}
+.seg-control button {
+  border: none;
+  background: transparent;
+  color: var(--reai-primary);
+  height: 28px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+.seg-control button.is-active {
+  background: var(--reai-primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(43, 92, 245, 0.4);
+}
+
+/* 题号徽标（截图「14.」风） */
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: var(--reai-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 渐变头像 */
+.avatar-gradient {
+  background: var(--reai-gradient-avatar) !important;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 图标小方块按钮（截图卡片右上角复制/收藏/删除风） */
+.icon-cube {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #f2f4fb;
+  color: var(--reai-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.icon-cube:hover {
+  background: var(--reai-primary-soft);
+  color: var(--reai-primary);
 }

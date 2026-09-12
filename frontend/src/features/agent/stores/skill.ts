@@ -7,31 +7,31 @@ export const useSkillStore = defineStore('skill', () => {
   const activeSkill = ref<string>('');
   const showSkillMenu = ref(false);
 
-  function setSkills(list: Skill[]) {
+  const setSkills = (list: Skill[]) => {
     skills.value = list;
-  }
+  };
 
-  function setActiveSkill(name: string) {
+  const setActiveSkill = (name: string) => {
     activeSkill.value = name;
-  }
+  };
 
-  function clearActiveSkill() {
+  const clearActiveSkill = () => {
     activeSkill.value = '';
-  }
+  };
 
-  function toggleSkillMenu(show: boolean) {
+  const toggleSkillMenu = (show: boolean) => {
     showSkillMenu.value = show;
-  }
+  };
 
-  function installSkill(id: string) {
+  const installSkill = (id: string) => {
     const s = skills.value.find(sk => sk.id === id);
     if (s) s.installed = true;
-  }
+  };
 
-  function uninstallSkill(id: string) {
+  const uninstallSkill = (id: string) => {
     const s = skills.value.find(sk => sk.id === id);
     if (s) s.installed = false;
-  }
+  };
 
   return {
     skills,

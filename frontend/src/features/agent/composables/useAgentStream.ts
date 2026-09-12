@@ -10,10 +10,10 @@ export interface UseAgentStreamReturn {
   reconnect: () => Promise<void>;
 }
 
-export function useAgentStream(
+export const useAgentStream = (
   options: SSEOptions = {},
   retryOptions: RetryOptions = {}
-): UseAgentStreamReturn {
+): UseAgentStreamReturn => {
   const events = ref<AgentEvent[]>([]);
   const status = ref<'idle' | 'streaming' | 'done' | 'error'>('idle');
   const error = ref<Error | null>(null);
@@ -26,16 +26,16 @@ export function useAgentStream(
   const retryDelay = retryOptions.retryDelay ?? 1000;
   const retryCondition = retryOptions.retryCondition ?? (() => true);
 
-  function parseEvent(data: string): AgentEvent | null {
+  const parseEvent = (data: string): AgentEvent | null => {
     try {
       const parsed = JSON.parse(data);
       return parsed as AgentEvent;
     } catch {
       return null;
     }
-  }
+  };
 
-  function handleMessage(event: MessageEvent) {
+  const handleMessage = (event: MessageEvent) => {
     const agentEvent = parseEvent(event.data);
     if (!agentEvent) return;
 
@@ -62,9 +62,9 @@ export function useAgentStream(
         close();
         break;
     }
-  }
+  };
 
-  function handleError(_err: Event) {
+  const handleError = (_err: Event) => {
     status.value = 'error';
     const errObj = new Error('SSE connection error');
     error.value = errObj;
@@ -77,18 +77,18 @@ export function useAgentStream(
         reconnect();
       }, retryDelay * retryCount);
     }
-  }
+  };
 
-  function close() {
+  const close = () => {
     if (eventSource) {
       eventSource.onmessage = null;
       eventSource.onerror = null;
       eventSource.close();
       eventSource = null;
     }
-  }
+  };
 
-  async function start(url: string, init?: RequestInit) {
+  const start = async (url: string, init?: RequestInit) => {
     if (status.value === 'streaming') return;
 
     currentUrl = url;
@@ -101,17 +101,17 @@ export function useAgentStream(
     eventSource = new EventSource(url);
     eventSource.onmessage = handleMessage;
     eventSource.onerror = handleError;
-  }
+  };
 
-  function stop() {
+  const stop = () => {
     close();
     status.value = 'idle';
-  }
+  };
 
-  async function reconnect() {
+  const reconnect = async () => {
     if (!currentUrl || status.value !== 'error') return;
     await start(currentUrl, currentOptions);
-  }
+  };
 
   return {
     events,
@@ -121,4 +121,4 @@ export function useAgentStream(
     stop,
     reconnect,
   };
-}
+};

@@ -1,17 +1,19 @@
 """工具执行器：鉴权 → 幂等（缓存）→ 执行 → 审计；超时/重试由调用方配置。"""
 import asyncio
+import inspect
 import time
 from typing import Any
 
 from app.core.logging import log_event
-from app.modules.agent.tools.registry import registry
+from app.modules.agent.tools.registry import registry as registry_module
 
 
 class ToolExecutor:
-    def __init__(self, cache=None, timeout: float = 30.0):
+    def __init__(self, cache=None, timeout: float = 30.0, registry=None):
         self._idem: dict[str, tuple[Any, float]] = {}
         self._timeout = timeout
         self._cache = cache  # 可选外部缓存（Redis），无则用进程内存
+        self._registry = registry or registry_module
         try:
             from app.services import cache as cache_svc  # 复用现有缓存服务
             self._cache_svc = cache_svc
@@ -30,7 +32,7 @@ class ToolExecutor:
         return set(tool["scopes"]) <= permissions_of(user.get("role", ""))
 
     async def execute(self, action, user: dict | None = None):
-        tool = registry.get(action.name)
+        tool = self._registry.get(action.name)
         if not self._allowed(tool, user):
             raise PermissionError("tool not allowed")
         key = getattr(action, "idempotency_key", None)
@@ -40,7 +42,7 @@ class ToolExecutor:
                 return hit[0]
         handler = tool["handler"]
         try:
-            if asyncio.iscoroutinefunction(handler):
+            if inspect.iscoroutinefunction(handler):
                 result = await asyncio.wait_for(handler(**action.args), self._timeout)
             else:
                 result = await asyncio.wait_for(

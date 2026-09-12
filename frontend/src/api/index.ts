@@ -20,23 +20,23 @@ export interface DocumentGovernance {
   expire_at?: string; // 失效日期 YYYY-MM-DD
 }
 
-function appendGov(fd: FormData, gov?: DocumentGovernance) {
+const appendGov = (fd: FormData, gov?: DocumentGovernance) => {
   if (!gov) return;
   Object.entries(gov).forEach(([k, v]) => {
     if (v) fd.append(k, v);
   });
-}
+};
 
 // 401 统一分流：token 过期/无效 → 清空登录态并回登录页（HTTP 401 与业务码 1002 双层命中）
-function handle401() {
+const handle401 = () => {
   ['reai_token', 'reai_auth', 'reai_role', 'reai_username', 'reai_perms'].forEach(k => {
     sessionStorage.removeItem(k);
     localStorage.removeItem(k);
   });
   if (!location.pathname.startsWith('/login')) location.href = '/login';
-}
+};
 
-export async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+export const request = async <T = any>(path: string, options: RequestInit = {}): Promise<T> => {
   const token = sessionStorage.getItem('reai_token') ?? '';
   // FormData（文件上传）必须交给浏览器自动生成 multipart 头，不能手工设 Content-Type
   const isForm = options.body instanceof FormData;
@@ -63,9 +63,12 @@ export async function request<T = any>(path: string, options: RequestInit = {}):
       code: res.status === 403 ? 1003 : 5000,
     });
   if (body.code !== 0)
-    throw Object.assign(new Error(body.msg), { code: body.code, trace_id: body.trace_id });
+    throw Object.assign(new Error(body.msg ?? `请求失败（业务码 ${body.code}）`), {
+      code: body.code ?? 5000,
+      trace_id: body.trace_id,
+    });
   return body.data;
-}
+};
 
 export const api = {
   // 认证
@@ -76,6 +79,7 @@ export const api = {
   // 会话
   listSessions: () => request('/sessions'),
   getSession: (threadId: string) => request(`/sessions/${threadId}`),
+  deleteSession: (threadId: string) => request(`/sessions/${threadId}`, { method: 'DELETE' }),
   // 对话（SSE，返回原始 Response 供调用方按 event 流解析）
   chatStream: (p: {
     thread_id?: string;
@@ -85,7 +89,10 @@ export const api = {
   }) =>
     fetch(`${BASE}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionStorage.getItem('reai_token') ?? ''}`,
+      },
       body: JSON.stringify(p),
     }),
   // 知识库（生产数据）与系统设置（配置调优），与智能问答（消费数据）形成闭环
@@ -226,7 +233,14 @@ export const api = {
   // AI 空间智能引擎 · 一键装修图：multipart 表单（毛坯房照片 + 家具/墙色/地面 → 图生图；不传照片走文生图）
   renderGenerate: (form: FormData) => request('/render/generate', { method: 'POST', body: form }),
   renderStatus: (taskId: string) => request(`/render/${taskId}`),
-  renderDownload: (taskId: string) => request(`/render/${taskId}/download`),
+  // 成图为二进制 PNG：必须走 fetch + blob，不能走统一 JSON 信封解析
+  renderDownload: async (taskId: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/render/${taskId}/download`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('reai_token') ?? ''}` },
+    });
+    if (!res.ok) throw Object.assign(new Error(`下载失败（HTTP ${res.status}）`), { code: 5000 });
+    return res.blob();
+  },
   // 生图历史记录（持久化，支持分页与风格/模式过滤）
   renderHistory: (p?: { page?: number; page_size?: number; style?: string; mode?: string }) => {
     const q = new URLSearchParams(
@@ -267,4 +281,45 @@ export const api = {
     request(`/users/${encodeURIComponent(username)}`, { method: 'PUT', body: JSON.stringify(p) }),
   deleteUser: (username: string) =>
     request(`/users/${encodeURIComponent(username)}`, { method: 'DELETE' }),
+  // Agent 工程化门面（后端 modules/agent）：统一事件协议 text/tool_call/tool_result/approval/error/done
+  agentChat: (p: { query: string; session_id?: string }) =>
+    request<{ answer: string; trace_id: string }>('/agent/chat', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: 'default', ...p }),
+    }),
+  // Agent 流式（SSE，调用方按 event 流解析；与 chatStream 同源不同协议）
+  agentChatStream: (p: { query: string; session_id?: string }) =>
+    fetch(`${BASE}/agent/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionStorage.getItem('reai_token') ?? ''}`,
+      },
+      body: JSON.stringify({ session_id: 'default', ...p }),
+    }),
+  // 工具注册中心：按当前用户权限过滤后返回可用工具
+  listTools: () => request('/tools'),
+  invokeTool: (name: string, args: object = {}, idempotency_key?: string) =>
+    request(`/tools/${encodeURIComponent(name)}/invoke`, {
+      method: 'POST',
+      body: JSON.stringify({ args, idempotency_key }),
+    }),
+  // 知识检索/索引（RAG 独立服务门面；文档上传仍走 documents/upload）
+  knowledgeSearch: (query: string, top_k = 5) =>
+    request('/knowledge/search', { method: 'POST', body: JSON.stringify({ query, top_k }) }),
+  knowledgeIndex: (doc_id: string, content = '') =>
+    request('/knowledge/index', { method: 'POST', body: JSON.stringify({ doc_id, content }) }),
+  // 人机协同审批（敏感工具调用暂停后，管理员批准/驳回）
+  approveApproval: (id: string, modified_args?: object) =>
+    request(`/approvals/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ modified_args }),
+    }),
+  rejectApproval: (id: string) => request(`/approvals/${id}/reject`, { method: 'POST' }),
+  // 评估门禁（黄金数据集回放 + 通过率）
+  evalRun: (agent_version = 'dev') =>
+    request('/eval/run', { method: 'POST', body: JSON.stringify({ agent_version }) }),
+  // 治理视角：就绪检查与模型用量
+  adminReady: () => request('/admin/ready'),
+  adminUsage: () => request('/admin/usage'),
 };

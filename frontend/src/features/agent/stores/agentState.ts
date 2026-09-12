@@ -18,38 +18,38 @@ export const useAgentStateStore = defineStore('agentState', () => {
     error: '错误',
   };
 
-  function startStreaming() {
+  const startStreaming = () => {
     status.value = {
       phase: 'planning',
       phaseText: PHASES.planning,
       isStreaming: true,
     };
-  }
+  };
 
-  function setPhase(phase: AgentPhase) {
+  const setPhase = (phase: AgentPhase) => {
     status.value.phase = phase;
     status.value.phaseText = PHASES[phase];
-  }
+  };
 
-  function setPhaseText(text: string) {
+  const setPhaseText = (text: string) => {
     status.value.phaseText = text;
-  }
+  };
 
-  function finishStreaming() {
+  const finishStreaming = () => {
     status.value = {
       phase: 'done',
       phaseText: PHASES.done,
       isStreaming: false,
     };
-  }
+  };
 
-  function setError() {
+  const setError = () => {
     status.value = {
       phase: 'error',
       phaseText: '❌ 出错了',
       isStreaming: false,
     };
-  }
+  };
 
   return {
     status,

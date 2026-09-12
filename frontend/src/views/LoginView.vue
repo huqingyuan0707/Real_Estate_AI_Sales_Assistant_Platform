@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import AiButton from '@/components/AiButton/index.vue';
+
 import AiInput from '@/components/AiInput/index.vue';
 import { api } from '@/api';
 
@@ -12,7 +12,7 @@ const loading = ref(false);
 
 const form = reactive({ username: 'admin', password: '123456' });
 
-async function handleLogin() {
+const handleLogin = async () => {
   if (!form.username || !form.password) {
     ElMessage.warning('请输入账号和密码');
     return;
@@ -38,12 +38,12 @@ async function handleLogin() {
   } finally {
     loading.value = false;
   }
-}
+};
 </script>
 
 <template>
   <div class="login-page">
-    <div class="login-card">
+    <div class="login-card fashion-card">
       <div class="login-logo">
         <span class="logo-icon">🏠</span>
         <div>
@@ -73,7 +73,7 @@ async function handleLogin() {
                 :prefix-icon="'Lock'"
               />
             </el-form-item>
-            <AiButton
+            <el-button
               type="primary"
               size="large"
               style="width: 100%"
@@ -81,7 +81,7 @@ async function handleLogin() {
               @click="handleLogin"
             >
               登 录
-            </AiButton>
+            </el-button>
           </el-form>
         </el-tab-pane>
 
@@ -103,7 +103,7 @@ async function handleLogin() {
                 :prefix-icon="'Lock'"
               />
             </el-form-item>
-            <AiButton
+            <el-button
               type="primary"
               size="large"
               style="width: 100%"
@@ -111,7 +111,7 @@ async function handleLogin() {
               @click="handleLogin"
             >
               域账号登录
-            </AiButton>
+            </el-button>
           </el-form>
         </el-tab-pane>
       </el-tabs>
@@ -130,14 +130,17 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a202c 0%, #3e5f7f 60%, #4f6f8f 100%);
+  background:
+    radial-gradient(1200px 600px at 15% 10%, rgba(125, 211, 252, 0.35), transparent 60%),
+    radial-gradient(1000px 700px at 85% 90%, rgba(167, 139, 250, 0.4), transparent 60%),
+    linear-gradient(135deg, #1e1b4b 0%, #2b5cf5 55%, #7c3aed 100%);
 }
 .login-card {
   width: 420px;
   background: #fff;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 40px 36px 24px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 24px 64px rgba(20, 26, 51, 0.4);
 }
 .login-logo {
   display: flex;

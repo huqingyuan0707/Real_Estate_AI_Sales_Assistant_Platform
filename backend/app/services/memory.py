@@ -63,6 +63,46 @@ def classify_content(content: str) -> tuple[str, bool]:
 _SHORT: dict[tuple[str, str, str], dict] = {}
 _SHORT_LOCK = threading.Lock()
 
+# 短期记忆落盘：进程重启后历史仍可恢复（生产可迁移 Redis）。
+# 键用 \x1f 连接 (tenant, user, thread)，取值时裁剪到窗口大小。
+_SHORT_PATH = Path(settings.MEM_STORE_PATH).parent / "short_memory.json"
+_SHORT_SEP = "\x1f"
+_SHORT_LOADED = False
+
+
+def _persist_short() -> None:
+    """锁内调用：将全量短期记忆落盘（失败不影响主链路）"""
+    try:
+        data = {_SHORT_SEP.join(k): v for k, v in _SHORT.items()}
+        _SHORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _SHORT_PATH.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _restore_short() -> None:
+    """锁内调用：进程首次访问时从磁盘恢复（历史 bug：纯内存，重启即丢全部对话历史）"""
+    global _SHORT_LOADED
+    if _SHORT_LOADED:
+        return
+    _SHORT_LOADED = True
+    if not _SHORT_PATH.exists():
+        return
+    try:
+        data = json.loads(_SHORT_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return
+    if not isinstance(data, dict):
+        return
+    for k, v in data.items():
+        parts = k.split(_SHORT_SEP)
+        if len(parts) == 3 and isinstance(v, dict) and isinstance(v.get("messages"), list):
+            _SHORT[(parts[0], parts[1], parts[2])] = {
+                "summary": str(v.get("summary", "")),
+                "messages": v["messages"][-settings.MEM_WINDOW:],
+                "task": v.get("task"),
+            }
+
 
 def _short_key(tenant_id: str, user_id: str, thread_id: str) -> tuple[str, str, str]:
     return (tenant_id, user_id, thread_id or "default")
@@ -79,6 +119,7 @@ def _session_tokens(sess: dict) -> int:
 def add_message(tenant_id: str, user_id: str, thread_id: str, role: str, content: str) -> None:
     """追加一条消息并按 窗口/预算 裁剪（超限的早期内容滚动进摘要）。"""
     with _SHORT_LOCK:
+        _restore_short()
         sess = _SHORT.setdefault(_short_key(tenant_id, user_id, thread_id), _new_session())
         sess["messages"].append({
             "role": role,
@@ -97,11 +138,13 @@ def add_message(tenant_id: str, user_id: str, thread_id: str, role: str, content
         if overflow:
             piece = "\n".join(f"{'用户' if m['role'] == 'user' else '助手'}: {m['content'][:200]}" for m in overflow)
             sess["summary"] = (sess["summary"] + "\n" + piece).strip()[-1500:]
+        _persist_short()
 
 
 def get_context(tenant_id: str, user_id: str, thread_id: str) -> tuple[str, list[dict]]:
     """返回 (滚动摘要, 窗口内消息)。供 Query 改写与 Prompt 组装使用。"""
     with _SHORT_LOCK:
+        _restore_short()
         sess = _SHORT.get(_short_key(tenant_id, user_id, thread_id))
         if not sess:
             return "", []
@@ -111,20 +154,55 @@ def get_context(tenant_id: str, user_id: str, thread_id: str) -> tuple[str, list
 def set_task_state(tenant_id: str, user_id: str, thread_id: str, task: dict | None) -> None:
     """记录当前会话任务状态（如最近一次任务类型/阶段），仅限当前会话生命周期。"""
     with _SHORT_LOCK:
+        _restore_short()
         sess = _SHORT.setdefault(_short_key(tenant_id, user_id, thread_id), _new_session())
         sess["task"] = task
+        _persist_short()
 
 
 def clear_short(tenant_id: str, user_id: str, thread_id: str) -> bool:
     with _SHORT_LOCK:
-        return _SHORT.pop(_short_key(tenant_id, user_id, thread_id), None) is not None
+        _restore_short()
+        removed = _SHORT.pop(_short_key(tenant_id, user_id, thread_id), None) is not None
+        if removed:
+            _persist_short()
+        return removed
 
 
 def short_stats() -> dict:
     with _SHORT_LOCK:
+        _restore_short()  # 缺此行会漏算已落盘的历史会话（设置页显示 0 个活跃会话）
         sessions = len(_SHORT)
         msgs = sum(len(s["messages"]) for s in _SHORT.values())
     return {"active_sessions": sessions, "cached_messages": msgs}
+
+
+def list_threads(tenant_id: str, user_id: str) -> list[dict]:
+    """列出该用户的全部会话（历史列表用）：标题取首条用户提问，按最近活动倒序。
+
+    历史 bug：/sessions 曾直接返回 mock 常量，真实会话永不出现，
+    页面刷新后新建会话凭空消失（表现为"历史对话没有保存记录"）。
+    """
+    with _SHORT_LOCK:
+        _restore_short()
+        out = []
+        for (tenant, user, thread_id), sess in _SHORT.items():
+            if tenant != tenant_id or user != user_id:
+                continue
+            msgs = sess.get("messages") or []
+            summary = sess.get("summary") or ""
+            if not msgs and not summary:
+                continue  # 空壳会话（只点了"新建"没提问）不进历史
+            first_user = next((m["content"] for m in msgs if m.get("role") == "user"), "")
+            title = (first_user or summary or "新对话").strip().replace("\n", " ")
+            out.append({
+                "thread_id": thread_id,
+                "title": title[:20] + ("…" if len(title) > 20 else ""),
+                "updated_at": (msgs[-1].get("ts") if msgs else "") or "",
+                "count": len(msgs),
+            })
+        out.sort(key=lambda x: x["updated_at"], reverse=True)
+        return out
 
 
 # ---------------------------------------------------------------------------

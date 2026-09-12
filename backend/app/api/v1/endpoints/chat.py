@@ -13,6 +13,7 @@
 """
 import asyncio
 import json
+import re
 import time
 
 from fastapi import APIRouter
@@ -80,11 +81,23 @@ class _StreamRedactor:
         return out
 
 
+_FILLER_HEAD = re.compile(r"^(请问一下|请问|那么|那|您好|你好|嗨|喂|嗯|呃)[，,、\s]*")
+_FILLER_TAIL = re.compile(r"(呢|吗|呀|啊|吧)[？?]*$")
+
+
+def _light_rewrite(content: str) -> str:
+    """无 LLM 时的规则兜底改写：去掉追问常用语气词（「那首付多少」→「首付多少」），
+    避免多轮追问因虚词被拒答；改后为空则保留原文。"""
+    text = _FILLER_HEAD.sub("", content.strip())
+    text = _FILLER_TAIL.sub("", text).strip()
+    return text or content
+
+
 async def _rewrite_query(tenant_id: str, user_id: str, thread_id: str | None, content: str) -> str:
-    """结合最近对话改写 Query（多轮指代消解）；LLM 不可用则原样返回"""
+    """结合最近对话改写 Query（多轮指代消解）；LLM 不可用则走规则兜底"""
     summary, window = memory.get_context(tenant_id, user_id, thread_id or "")
     if not window or not await llm_available():
-        return content
+        return _light_rewrite(content)
     hist_text = "\n".join(f"用户: {m['content'][:120]}" if m["role"] == "user" else f"助手: {m['content'][:120]}" for m in window)
     if summary:
         hist_text = f"[更早对话摘要]\n{summary}\n\n[近期对话]\n{hist_text}"
@@ -99,7 +112,7 @@ async def _rewrite_query(tenant_id: str, user_id: str, thread_id: str | None, co
             out += piece
         return out.strip().strip('"') or content
     except LLMUnavailable:
-        return content
+        return _light_rewrite(content)
 
 
 def _locate(meta: dict) -> str:
@@ -176,6 +189,14 @@ async def _rag_stream(ctx: dict, thread_id: str | None, content: str, skill: str
         yield _sse("phase", PHASE_RERANK)
         hits, rejected, trace = rag.retrieve(query, ctx)
         if rejected:
+            # 拒答轮次同样落库：否则该轮问答在历史中凭空消失（用户切会话再回来会困惑）
+            memory.add_message(tenant_id, user_id, thread_id or "default", "user", content)
+            memory.add_message(tenant_id, user_id, thread_id or "default", "assistant",
+                               "【知识库暂无相关内容，已拒答】")
+            memory.set_task_state(tenant_id, user_id, thread_id or "default", {
+                "type": "rag_qa", "retrieved": False, "rejected": True,
+                "updated_at": time.time(), "trace_id": get_trace_id(),
+            })
             _record(ctx, t_start, content, query, [], trace, rejected=True, inject=[], redacted=0, mode=mode)
             yield _sse("done", json.dumps(
                 {"references": [], "model": mode, "rejected": True, "trace_id": get_trace_id(),

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { documents as mockDocuments } from '@/mock';
-import AiButton from '@/components/AiButton/index.vue';
+
 import AiInput from '@/components/AiInput/index.vue';
 import { api } from '@/api';
 
@@ -16,20 +17,20 @@ const stats = ref<any>(null);
 let pollTimer: number | undefined;
 let batchAbort: AbortController | undefined;
 
-async function loadDocs() {
+const loadDocs = async () => {
   try {
     rows.value = await api.listDocuments();
   } catch {
     rows.value = mockDocuments.map(d => ({ ...d })); // 后端不可用时回退演示数据
   }
-}
-async function loadStats() {
+};
+const loadStats = async () => {
   try {
     stats.value = await api.documentStats();
   } catch {
     stats.value = null;
   }
-}
+};
 
 /* ---------------- 知识治理标签（上传时标注，决定检索阶段可见范围） ---------------- */
 const govOptions = ref<any>({ security_levels: [], review_status: [], depts: [] });
@@ -45,7 +46,7 @@ const GOV_LEVEL_TAG: Record<string, { text: string; type: string }> = {
   internal: { text: '内部', type: 'info' },
   confidential: { text: '机密', type: 'danger' },
 };
-function govPayload() {
+const govPayload = () => {
   return {
     security_level: govForm.security_level,
     dept_id: govForm.dept_id,
@@ -53,25 +54,25 @@ function govPayload() {
     effective_at: govForm.effective_at,
     expire_at: govForm.expire_at,
   };
-}
-async function loadGovernance() {
+};
+const loadGovernance = async () => {
   try {
     govOptions.value = (await api.documentGovernance()).options ?? {};
   } catch {
     /* 后端不可用时忽略 */
   }
-}
+};
 
 /* ---------------- 知识运营看板（反馈闭环 + RAG 可观测指标） ---------------- */
 const ops = ref<any>(null);
 const opsOpen = ref(false);
-async function loadOps() {
+const loadOps = async () => {
   try {
     ops.value = await api.feedbackStats();
   } catch {
     ops.value = null;
   }
-}
+};
 
 /* ---------------- 治理与运维：质量校验 / 索引版本 / 增量同步 / 审核 ---------------- */
 const quality = ref<any>(null);
@@ -86,21 +87,21 @@ const ISSUE_LABEL: Record<string, string> = {
   missing_gov: '治理标签缺失',
 };
 
-async function loadQuality() {
+const loadQuality = async () => {
   try {
     quality.value = await api.documentQuality();
   } catch {
     quality.value = null;
   }
-}
-async function loadIndex() {
+};
+const loadIndex = async () => {
   try {
     indexInfo.value = await api.indexVersions();
   } catch {
     indexInfo.value = null;
   }
-}
-async function runSync() {
+};
+const runSync = async () => {
   infraBusy.value = 'sync';
   try {
     const r: any = await api.documentSync();
@@ -116,8 +117,8 @@ async function runSync() {
   } finally {
     infraBusy.value = '';
   }
-}
-async function rebuildIndex() {
+};
+const rebuildIndex = async () => {
   try {
     const { value } = await ElMessageBox.prompt(
       '换嵌入模型重建索引（留空 = 用当前模型重建）。重建前会自动快照，可随时回滚。',
@@ -140,8 +141,8 @@ async function rebuildIndex() {
   } finally {
     infraBusy.value = '';
   }
-}
-async function rollbackIndex() {
+};
+const rollbackIndex = async () => {
   const backups: any[] = indexInfo.value?.backups ?? [];
   if (!backups.length) {
     ElMessage.warning('暂无可用快照，先执行一次入库或重建');
@@ -166,8 +167,8 @@ async function rollbackIndex() {
   } finally {
     infraBusy.value = '';
   }
-}
-async function reviewDoc(row: any, action: 'approve' | 'reject' | 'archive') {
+};
+const reviewDoc = async (row: any, action: 'approve' | 'reject' | 'archive') => {
   try {
     await api.reviewDocument(row.id, action);
     ElMessage.success(
@@ -182,7 +183,7 @@ async function reviewDoc(row: any, action: 'approve' | 'reject' | 'archive') {
   } catch (e: any) {
     ElMessage.error(e.message || '审核失败');
   }
-}
+};
 
 onMounted(() => {
   loadDocs();
@@ -201,12 +202,13 @@ const statusMap: Record<string, { text: string; cls: string }> = {
   active: { text: '生效中', cls: 'st-active' },
   processing: { text: '处理中', cls: 'st-processing' },
   inactive: { text: '已失效', cls: 'st-inactive' },
+  deprecated: { text: '已被新版替代', cls: 'st-inactive' },
 };
 
-function viewDoc(row: { name: string }) {
+const viewDoc = (row: { name: string }) => {
   ElMessage.info(`查看《${row.name}》（预览开发中）`);
-}
-function disableDoc(row: { name: string; status: string }) {
+};
+const disableDoc = (row: { name: string; status: string }) => {
   ElMessageBox.confirm(`停用后《${row.name}》将不可被 AI 检索引用，确认停用？`, '停用文档', {
     type: 'warning',
     confirmButtonText: '停用',
@@ -217,9 +219,9 @@ function disableDoc(row: { name: string; status: string }) {
       ElMessage.success('已停用');
     })
     .catch(() => {});
-}
+};
 /** 按源文件删除：删除 Chroma 全部向量块 + 注册表记录 */
-async function deleteDoc(row: { name: string; chunks?: number }) {
+const deleteDoc = async (row: { name: string; chunks?: number }) => {
   await ElMessageBox.confirm(
     `删除后《${row.name}》${row.chunks ? `（${row.chunks} 个向量块）` : ''}将从向量索引中移除且不可恢复，确认删除？`,
     '删除文档',
@@ -236,7 +238,7 @@ async function deleteDoc(row: { name: string; chunks?: number }) {
       }
     })
     .catch(() => {});
-}
+};
 
 /* ---------------- 上传弹窗（规范 5.3：640×480，真实入库链） ---------------- */
 const uploadVisible = ref(false);
@@ -245,23 +247,23 @@ const uploadList = reactive<{ name: string; size: string; state: string; file?: 
 const conflictDocName = ref('');
 const fileInput = ref<HTMLInputElement>();
 
-function openUpload() {
+const openUpload = () => {
   uploadVisible.value = true;
-}
-function triggerPick() {
+};
+const triggerPick = () => {
   fileInput.value?.click();
-}
-function onPick(e: Event) {
+};
+const onPick = (e: Event) => {
   const input = e.target as HTMLInputElement;
   if (input.files?.length) addFiles(Array.from(input.files));
   input.value = '';
-}
-function onDrop(e: DragEvent) {
+};
+const onDrop = (e: DragEvent) => {
   dragOver.value = false;
   const files = Array.from(e.dataTransfer?.files ?? []);
   if (files.length) addFiles(files);
-}
-function addFiles(files: File[]) {
+};
+const addFiles = (files: File[]) => {
   for (const f of files) {
     if (rows.value.some(r => r.name === f.name)) {
       conflictDocName.value = f.name;
@@ -274,8 +276,8 @@ function addFiles(files: File[]) {
       file: f,
     });
   }
-}
-async function doUpload() {
+};
+const doUpload = async () => {
   const files = uploadList.filter(f => f.file).map(f => f.file!);
   // 多文件 → 批量导入异步任务（对齐技术方案 5.2 /documents/batch-import + 11.1 任务中心 SSE）
   if (files.length >= 2) {
@@ -312,10 +314,10 @@ async function doUpload() {
       loadStats();
     }
   }, 5000);
-}
+};
 
 /** 批量导入：一次提交异步任务，SSE 订阅 /tasks/{task_id}/stream 更新行内进度 */
-async function doBatchImport(files: File[]) {
+const doBatchImport = async (files: File[]) => {
   uploadList.forEach(f => (f.state = '⏳ 已加入批量导入队列'));
   try {
     const res = await api.batchImport(files, govPayload());
@@ -327,9 +329,9 @@ async function doBatchImport(files: File[]) {
     uploadList.forEach(f => (f.state = `❌ ${e.message || '提交失败'}`));
     ElMessage.error(e.message || '批量导入提交失败');
   }
-}
+};
 
-function subscribeBatch(taskId: string) {
+const subscribeBatch = (taskId: string) => {
   batchAbort?.abort();
   batchAbort = new AbortController();
   const signal = batchAbort.signal;
@@ -395,7 +397,7 @@ function subscribeBatch(taskId: string) {
       /* 页面离开或网络中断，任务仍在服务端继续 */
     }
   })();
-}
+};
 
 /* ---------------- 版本冲突弹窗（规范 5.4：480px） ---------------- */
 const conflictVisible = computed({
@@ -405,19 +407,19 @@ const conflictVisible = computed({
   },
 });
 const conflictChoice = ref<'cover' | 'keep'>('cover');
-function confirmConflict() {
+const confirmConflict = () => {
   const name = conflictDocName.value;
   conflictDocName.value = '';
   const item = uploadList.find(f => f.name === name);
   if (item) item.state = '⚠️ 同名冲突（请在服务端处理版本策略后重命名上传）';
   ElMessage.warning('同名文档已存在，建议重命名后重新上传');
-}
+};
 
 /* ---------------- 试搜一下（真实检索：向量召回 + Rerank） ---------------- */
 const tried = ref(false);
 const trying = ref(false);
 const tryResults = ref<any[]>([]);
-async function trySearch() {
+const trySearch = async () => {
   if (!searchKw.value.trim()) {
     ElMessage.warning('请输入检索关键词');
     return;
@@ -431,15 +433,23 @@ async function trySearch() {
   } finally {
     trying.value = false;
   }
-}
+};
 </script>
 
 <template>
   <div class="kb-page">
     <!-- 顶部操作栏 -->
     <div class="kb-toolbar">
-      <h2 class="kb-title">知识库</h2>
-      <AiButton type="primary" class="upload-btn" round @click="openUpload"> 📤 上传文档 </AiButton>
+      <PageHero
+        index="03"
+        title="知识库"
+        sub="私有化 RAG：文档解析 · 切片 · 向量化 · 混合检索"
+        :tags="[
+          { text: 'RAG 问答', kind: 'blue' },
+          { text: '双路召回', kind: 'green' },
+        ]"
+      />
+      <el-button type="primary" class="upload-btn" round @click="openUpload"> 📤 上传文档 </el-button>
     </div>
 
     <!-- 知识库统计条：生产数据概览 -->
@@ -460,7 +470,7 @@ async function trySearch() {
     </div>
 
     <!-- 试搜引导卡片：独立浅色卡区 -->
-    <div class="try-card">
+    <div class="try-card fashion-card">
       <div class="try-card-head">
         <div>
           <div class="try-card-title">🔍 试搜一下</div>
@@ -474,7 +484,7 @@ async function trySearch() {
             :prefix-icon="'Search'"
             @keyup.enter="trySearch"
           />
-          <AiButton type="primary" style="margin-left: 8px" @click="trySearch"> 试搜 </AiButton>
+          <el-button type="primary" style="margin-left: 8px" @click="trySearch"> 试搜 </el-button>
         </div>
       </div>
       <!-- 试搜结果（真实：bge-small-zh 召回 + bge-reranker 重排） -->
@@ -500,12 +510,12 @@ async function trySearch() {
         <div v-if="!trying && !tryResults.length" class="try-empty">
           未命中相关内容 —— 请上传更多文档或调整检索关键词
         </div>
-        <AiButton text size="small" @click="tried = false"> 收起 </AiButton>
+        <el-button text size="small" @click="tried = false"> 收起 </el-button>
       </div>
     </div>
 
     <!-- 知识运营看板：反馈闭环（采纳率 / 差评知识 / 知识缺口）+ RAG 可观测指标 -->
-    <div v-if="ops" class="ops-card">
+    <div v-if="ops" class="ops-card fashion-card">
       <div class="ops-head" @click="opsOpen = !opsOpen">
         <div class="ops-title">📈 知识运营看板</div>
         <div class="ops-kpis">
@@ -643,11 +653,11 @@ async function trySearch() {
         <span class="doc-status" :class="row.status">
           <i v-if="row.status === 'processing'" class="spinner" />
           <i v-else class="dot" />
-          {{ statusMap[row.status].text }}
+          {{ statusMap[row.status]?.text || row.status }}
         </span>
         <span class="doc-ver">{{ row.version }}</span>
         <div class="doc-ops">
-          <AiButton
+          <el-button
             v-if="row.review_status === 'draft'"
             text
             type="primary"
@@ -655,8 +665,8 @@ async function trySearch() {
             @click="reviewDoc(row, 'approve')"
           >
             ✅ 发布
-          </AiButton>
-          <AiButton
+          </el-button>
+          <el-button
             v-else-if="row.review_status === 'published'"
             text
             size="small"
@@ -664,9 +674,9 @@ async function trySearch() {
             @click="reviewDoc(row, 'archive')"
           >
             📦 归档
-          </AiButton>
-          <AiButton text type="primary" size="small" @click="viewDoc(row)"> 👁 查看 </AiButton>
-          <AiButton
+          </el-button>
+          <el-button text type="primary" size="small" @click="viewDoc(row)"> 👁 查看 </el-button>
+          <el-button
             text
             size="small"
             style="color: var(--reai-text-muted)"
@@ -674,15 +684,15 @@ async function trySearch() {
             @click="disableDoc(row)"
           >
             ⏸ 停用
-          </AiButton>
-          <AiButton
+          </el-button>
+          <el-button
             text
             size="small"
             style="color: var(--reai-danger, #d66)"
             @click="deleteDoc(row)"
           >
             🗑 删除
-          </AiButton>
+          </el-button>
         </div>
       </div>
       <div v-if="!filtered.length" class="table-empty">
@@ -789,10 +799,10 @@ async function trySearch() {
         </div>
       </div>
       <template #footer>
-        <AiButton @click="uploadVisible = false"> 取消 </AiButton>
-        <AiButton type="primary" :disabled="!uploadList.length" @click="doUpload">
+        <el-button @click="uploadVisible = false"> 取消 </el-button>
+        <el-button type="primary" :disabled="!uploadList.length" @click="doUpload">
           确认上传
-        </AiButton>
+        </el-button>
       </template>
     </el-dialog>
 
@@ -814,8 +824,8 @@ async function trySearch() {
         </el-radio>
       </el-radio-group>
       <template #footer>
-        <AiButton @click="conflictVisible = false"> 取消 </AiButton>
-        <AiButton type="primary" @click="confirmConflict"> 确认上传 </AiButton>
+        <el-button @click="conflictVisible = false"> 取消 </el-button>
+        <el-button type="primary" @click="confirmConflict"> 确认上传 </el-button>
       </template>
     </el-dialog>
   </div>

@@ -18,48 +18,48 @@ export const useSessionStore = defineStore('session', () => {
     return groups;
   });
 
-  function setSessions(list: Session[]) {
+  const setSessions = (list: Session[]) => {
     sessions.value = list;
     if (list.length && !currentId.value) {
       currentId.value = list[0]!.threadId;
     }
-  }
+  };
 
-  function addSession(session: Session) {
+  const addSession = (session: Session) => {
     sessions.value.unshift(session);
     currentId.value = session.threadId;
     messages.value = [];
-  }
+  };
 
-  function removeSession(id: string) {
+  const removeSession = (id: string) => {
     const idx = sessions.value.findIndex(s => s.threadId === id);
     if (idx > -1) sessions.value.splice(idx, 1);
     if (currentId.value === id) {
       currentId.value = sessions.value[0]?.threadId ?? null;
       messages.value = [];
     }
-  }
+  };
 
-  function renameSession(id: string, title: string) {
+  const renameSession = (id: string, title: string) => {
     const s = sessions.value.find(s => s.threadId === id);
     if (s) s.title = title;
-  }
+  };
 
-  function setCurrentSession(id: string) {
+  const setCurrentSession = (id: string) => {
     currentId.value = id;
-  }
+  };
 
-  function setMessages(msgs: Message[]) {
+  const setMessages = (msgs: Message[]) => {
     messages.value = msgs;
-  }
+  };
 
-  function addMessage(
+  const addMessage = (
     msg: Partial<Message> & { id: string; role: 'user' | 'assistant' | 'system'; content: string }
-  ) {
+  ) => {
     messages.value.push(msg as Message);
-  }
+  };
 
-  function updateMessage(id: string, patch: MessageUpdate) {
+  const updateMessage = (id: string, patch: MessageUpdate) => {
     const idx = messages.value.findIndex(m => m.id === id);
     if (idx > -1) {
       const msg = messages.value[idx]!;
@@ -76,19 +76,19 @@ export const useSessionStore = defineStore('session', () => {
       if (patch.rejected !== undefined) msg.rejected = patch.rejected;
       if (patch.time !== undefined) msg.time = patch.time;
     }
-  }
+  };
 
-  function markRestored(id: string) {
+  const markRestored = (id: string) => {
     restoredIds.add(id);
-  }
+  };
 
-  function isRestored(id: string): boolean {
+  const isRestored = (id: string): boolean => {
     return restoredIds.has(id);
-  }
+  };
 
-  function clearMessages() {
+  const clearMessages = () => {
     messages.value = [];
-  }
+  };
 
   return {
     sessions,

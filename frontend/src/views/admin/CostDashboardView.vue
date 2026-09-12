@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import * as echarts from 'echarts';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { costStats } from '@/mock';
@@ -55,9 +56,9 @@ onMounted(() => {
   });
   window.addEventListener('resize', resize);
 });
-function resize() {
+const resize = () => {
   chart?.resize();
-}
+};
 onUnmounted(() => {
   window.removeEventListener('resize', resize);
   chart?.dispose();
@@ -66,6 +67,15 @@ onUnmounted(() => {
 
 <template>
   <div class="cost-page">
+    <PageHero
+      index="09"
+      title="费用看板"
+      sub="Token 与第三方调用消耗 · 按工作空间归因"
+      :tags="[
+        { text: '用量统计', kind: 'blue' },
+        { text: '成本归因', kind: 'yellow' },
+      ]"
+    />
     <!-- 预警细条：32px + 红点 -->
     <div v-if="costStats.budgetUsedPercent >= 80" class="alert-banner">
       <span class="alert-dot" />
@@ -75,13 +85,13 @@ onUnmounted(() => {
 
     <div class="cost-body">
       <!-- 折线图 70% -->
-      <div class="chart-card">
+      <div class="chart-card fashion-card">
         <div class="chart-title">近 30 日 Token 费用趋势</div>
         <div ref="chartEl" class="chart" />
       </div>
 
       <!-- 消耗榜单 30% -->
-      <div class="rank-card">
+      <div class="rank-card fashion-card">
         <div class="chart-title">Skill 消耗榜单 Top 3</div>
         <div v-for="s in costStats.topSkills" :key="s.name" class="rank-item">
           <div class="rank-head">

@@ -17,8 +17,8 @@ import {
   Setting,
   TrendCharts,
 } from '@element-plus/icons-vue';
-import AiButton from '@/components/AiButton/index.vue';
 import AiInput from '@/components/AiInput/index.vue';
+import PageSkeleton from '@/components/PageSkeleton/index.vue';
 import { api } from '@/api';
 
 const route = useRoute();
@@ -67,27 +67,66 @@ const pendingTaskCount = 2;
 const netBroken = ref(false);
 const collapsed = ref(true); // 原则一：导航默认收起为图标模式
 
-function reconnect() {
+// 路由切换骨架屏：懒加载分包首访时覆盖内容区，避免白屏闪烁（150ms 内完成则不闪现）
+const routeLoading = ref(false);
+let routeTimer: ReturnType<typeof setTimeout> | undefined;
+router.beforeEach(() => {
+  window.clearTimeout(routeTimer);
+  routeTimer = setTimeout(() => (routeLoading.value = true), 150);
+  return true;
+});
+router.afterEach(() => {
+  window.clearTimeout(routeTimer);
+  routeLoading.value = false;
+});
+
+// 空闲预加载全部路由分包：首次空闲后静默拉取，之后切换页面零等待
+onMounted(() => {
+  const idle =
+    (window as any).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 2500));
+  idle(() => {
+    [
+      () => import('@/views/ChatView.vue'),
+      () => import('@/views/HouseEditorView.vue'),
+      () => import('@/views/KnowledgeView.vue'),
+      () => import('@/views/SkillMarketView.vue'),
+      () => import('@/views/TaskCenterView.vue'),
+      () => import('@/views/MyAiView.vue'),
+      () => import('@/views/SettingsView.vue'),
+      () => import('@/views/admin/AuditLogView.vue'),
+      () => import('@/views/admin/CostDashboardView.vue'),
+      () => import('@/views/admin/UserManageView.vue'),
+    ].forEach(fn => {
+      try {
+        fn();
+      } catch {
+        /* 首屏性能优先，预加载失败不打扰 */
+      }
+    });
+  });
+});
+
+const reconnect = () => {
   netBroken.value = false;
   ElMessage.success('网络已恢复');
-}
+};
 
-function onUserCommand(cmd: string) {
+const onUserCommand = (cmd: string) => {
   if (cmd === 'settings') router.push('/my-ai');
   else if (cmd === 'logout') {
     sessionStorage.clear();
     router.push('/login');
   }
-}
+};
 
-function onSearch() {
+const onSearch = () => {
   if (!searchKw.value.trim()) return;
   ElMessage.info(`全局搜索（演示）：${searchKw.value}`);
-}
+};
 
-function goTasks() {
+const goTasks = () => {
   router.push('/tasks');
-}
+};
 </script>
 
 <template>
@@ -96,7 +135,7 @@ function goTasks() {
     <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar" :class="{ collapsed }">
       <div class="logo" @click="collapsed = !collapsed">
         <span class="logo-icon">
-          <el-icon :size="20" color="var(--reai-primary)"><HomeFilled /></el-icon>
+          <el-icon :size="20" color="#ffffff"><HomeFilled /></el-icon>
         </span>
         <span v-if="!collapsed" class="logo-text">AI销售助手</span>
         <el-icon v-if="!collapsed" :size="14" class="fold-arrow" color="var(--reai-text-muted)">
@@ -157,7 +196,7 @@ function goTasks() {
       <div class="sidebar-user">
         <el-dropdown @command="onUserCommand">
           <div class="sidebar-user-inner" :class="{ center: collapsed }">
-            <el-avatar :size="32" style="background: var(--reai-primary); flex-shrink: 0">
+            <el-avatar :size="32" class="avatar-gradient" style="flex-shrink: 0">
               {{ username.slice(0, 1) }}
             </el-avatar>
             <div v-if="!collapsed" class="sidebar-user-info">
@@ -182,7 +221,7 @@ function goTasks() {
     <el-container class="right-wrap">
       <div v-if="netBroken" class="net-banner">
         <span>网络已断开，请检查连接</span>
-        <AiButton size="small" round @click="reconnect"> 重新连接 </AiButton>
+        <el-button size="small" round @click="reconnect"> 重新连接 </el-button>
       </div>
 
       <!-- 顶部状态栏 -->
@@ -205,7 +244,7 @@ function goTasks() {
             </el-icon>
           </el-badge>
           <el-dropdown @command="onUserCommand">
-            <el-avatar :size="32" style="background: var(--reai-primary); cursor: pointer">
+            <el-avatar :size="32" class="avatar-gradient" style="cursor: pointer">
               {{ username.slice(0, 1) }}
             </el-avatar>
             <template #dropdown>
@@ -220,6 +259,11 @@ function goTasks() {
 
       <el-main class="main" :class="{ 'main-flush': isChatRoute }">
         <router-view />
+        <transition name="route-fade">
+          <div v-if="routeLoading" class="route-skeleton">
+            <PageSkeleton variant="page" />
+          </div>
+        </transition>
       </el-main>
     </el-container>
   </el-container>
@@ -230,10 +274,12 @@ function goTasks() {
   height: 100%;
 }
 
-/* 白色悬浮侧栏，轻阴影无重边框 */
+/* 白色悬浮圆角侧栏，柔光阴影 */
 .sidebar {
-  background: var(--reai-card);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
   box-shadow: var(--reai-shadow-md);
+  border-radius: 0 20px 20px 0;
   display: flex;
   flex-direction: column;
   transition: width 0.25s ease;
@@ -257,10 +303,11 @@ function goTasks() {
   padding: 0;
 }
 .logo-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--reai-primary-soft);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--reai-gradient-primary);
+  box-shadow: 0 4px 12px rgba(43, 92, 245, 0.36);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,19 +334,21 @@ function goTasks() {
 }
 .menu :deep(.el-menu-item) {
   height: 42px;
-  margin: 2px 0;
-  border-radius: 10px;
+  margin: 3px 0;
+  border-radius: 12px;
   color: var(--reai-text-secondary);
   font-size: 14px;
+  transition: all 0.2s ease;
 }
 .menu :deep(.el-menu-item:hover) {
-  background: var(--reai-bg-gray);
-  color: var(--reai-text-main);
-}
-.menu :deep(.el-menu-item.is-active) {
   background: var(--reai-primary-soft);
   color: var(--reai-primary);
+}
+.menu :deep(.el-menu-item.is-active) {
+  background: var(--reai-gradient-primary);
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 4px 12px rgba(43, 92, 245, 0.32);
 }
 .menu-divider {
   border-top: 1px solid var(--reai-border);
@@ -368,7 +417,7 @@ function goTasks() {
 .right-wrap {
   height: 100%;
   overflow: hidden;
-  background: var(--reai-bg-neutral);
+  background: transparent;
 }
 .net-banner {
   height: 40px;
@@ -382,9 +431,9 @@ function goTasks() {
 }
 
 .topbar {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--reai-border);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(226, 229, 244, 0.8);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -407,12 +456,31 @@ function goTasks() {
 }
 
 .main {
-  background: var(--reai-bg-neutral);
+  background: transparent;
   padding: 24px;
   overflow: auto;
+  position: relative;
 }
 .main-flush {
   padding: 0;
   overflow: hidden;
+}
+/* 路由切换骨架遮罩：覆盖内容区，渐变底保持视觉连续 */
+.route-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  padding: 24px;
+  overflow: hidden;
+  background: var(--reai-page-bg);
+  background-attachment: fixed;
+}
+.route-fade-enter-active,
+.route-fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+.route-fade-enter-from,
+.route-fade-leave-to {
+  opacity: 0;
 }
 </style>

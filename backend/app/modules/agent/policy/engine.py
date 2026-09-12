@@ -1,12 +1,15 @@
 """策略引擎：工具调用前置检查 → allow / deny / approval。"""
-from app.modules.agent.tools.registry import registry
+from app.modules.agent.tools.registry import registry as _default_registry
 
 
 class PolicyEngine:
+    def __init__(self, registry=None):
+        self._registry = registry or _default_registry
+
     async def check(self, action, user: dict | None = None) -> str:
         """返回 allow|approval；无权限直接抛 PermissionError。"""
         try:
-            tool = registry.get(action.name)
+            tool = self._registry.get(action.name)
         except KeyError:
             raise PermissionError(f"unknown tool: {action.name}")
         # scope 鉴权

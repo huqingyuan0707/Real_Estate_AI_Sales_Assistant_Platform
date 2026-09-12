@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import AiButton from '@/components/AiButton/index.vue';
 import { api } from '@/api';
 
 /* ---------------- 用户管理（RBAC：真实接口，admin/manager/member 三角色） ---------------- */
 const rows = ref<any[]>([]);
+const loaded = ref(false);
 const workspaceOptions = ref<string[]>([]);
 const dialogVisible = ref(false);
 const editing = ref<any>(null);
@@ -19,18 +20,20 @@ const form = reactive({
 
 const ROLE_NAMES: Record<string, string> = { admin: '管理员', manager: '主管', member: '成员' };
 
-async function load() {
+const load = async () => {
   try {
     const data: any = await api.listUsers();
     rows.value = data.users ?? [];
     workspaceOptions.value = data.workspaces ?? [];
   } catch (e: any) {
     ElMessage.error(e?.message || '用户列表加载失败');
+  } finally {
+    loaded.value = true;
   }
-}
+};
 onMounted(load);
 
-function openCreate() {
+const openCreate = () => {
   editing.value = null;
   Object.assign(form, {
     name: '',
@@ -40,8 +43,8 @@ function openCreate() {
     initial_password: '123456',
   });
   dialogVisible.value = true;
-}
-function openEdit(u: any) {
+};
+const openEdit = (u: any) => {
   editing.value = u;
   Object.assign(form, {
     name: u.name,
@@ -51,8 +54,8 @@ function openEdit(u: any) {
     initial_password: '',
   });
   dialogVisible.value = true;
-}
-async function submit() {
+};
+const submit = async () => {
   if (
     !editing.value &&
     (!form.name.trim() || !form.username.trim() || !form.initial_password.trim())
@@ -80,8 +83,8 @@ async function submit() {
   } catch (e: any) {
     ElMessage.error(e?.message || '操作失败');
   }
-}
-function resetPwd(u: any) {
+};
+const resetPwd = (u: any) => {
   ElMessageBox.confirm(`确认将「${u.name}」的密码重置为初始密码 123456？`, '重置密码', {
     type: 'warning',
     confirmButtonText: '重置',
@@ -92,8 +95,8 @@ function resetPwd(u: any) {
       ElMessage.success('密码已重置为 123456');
     })
     .catch(() => {});
-}
-function toggleStatus(u: any) {
+};
+const toggleStatus = (u: any) => {
   const disable = u.status === 'active';
   ElMessageBox.confirm(
     disable ? `禁用后「${u.name}」将无法登录，确认禁用？` : `确认恢复「${u.name}」的访问权限？`,
@@ -106,8 +109,8 @@ function toggleStatus(u: any) {
       await load();
     })
     .catch(() => {});
-}
-function removeUser(u: any) {
+};
+const removeUser = (u: any) => {
   ElMessageBox.confirm(`确认删除用户「${u.name}」？该操作不可恢复。`, '删除用户', {
     type: 'warning',
     confirmButtonText: '删除',
@@ -119,62 +122,77 @@ function removeUser(u: any) {
       await load();
     })
     .catch(() => {});
-}
+};
 </script>
 
 <template>
   <div class="user-page">
+    <PageHero
+      index="10"
+      title="用户管理"
+      sub="账号 · 角色 · 部门 · 启停，一个页面管完"
+      :tags="[
+        { text: '账号体系', kind: 'blue' },
+        { text: 'RBAC', kind: 'purple' },
+      ]"
+    />
     <div class="user-toolbar">
-      <AiButton type="primary" style="height: 40px" @click="openCreate"> 添加用户 </AiButton>
+      <el-button type="primary" style="height: 40px" @click="openCreate"> 添加用户 </el-button>
     </div>
 
+    <div class="fashion-card" style="padding: 10px 10px 6px">
+    <el-skeleton :loading="!loaded" animated>
+      <template #default>
     <el-table
       :data="rows"
-      class="user-table"
-      :header-cell-style="{
-        background: '#F8FAFC',
-        color: '#64748B',
-        fontSize: '12px',
-        height: '44px',
-      }"
-      :row-style="{ height: '52px', fontSize: '14px' }"
-    >
-      <el-table-column prop="name" label="姓名" width="120" />
-      <el-table-column prop="username" label="账号" width="140" />
-      <el-table-column label="角色" width="110">
-        <template #default="{ row }">
-          <span class="role-tag" :class="`role-${row.role}`">{{
-            ROLE_NAMES[row.role] ?? row.role
-          }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="workspace" label="所属部门" width="140" />
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <span class="status-dot" :class="row.status === 'active' ? 'on' : 'off'" />
-          {{ row.status === 'active' ? '启用' : '禁用' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="260">
-        <template #default="{ row }">
-          <AiButton text type="primary" size="small" @click="openEdit(row)"> 编辑 </AiButton>
-          <AiButton text size="small" style="color: #64748b" @click="resetPwd(row)">
-            重置密码
-          </AiButton>
-          <AiButton
-            text
-            size="small"
-            :style="{ color: row.status === 'active' ? '#EF4444' : '#10B981' }"
-            @click="toggleStatus(row)"
-          >
-            {{ row.status === 'active' ? '停用' : '启用' }}
-          </AiButton>
-          <AiButton text size="small" style="color: #ef4444" @click="removeUser(row)">
-            删除
-          </AiButton>
-        </template>
-      </el-table-column>
-    </el-table>
+        class="user-table"
+        :header-cell-style="{
+          background: '#F8FAFC',
+          color: '#64748B',
+          fontSize: '12px',
+          height: '44px',
+        }"
+        :row-style="{ height: '52px', fontSize: '14px' }"
+      >
+        <el-table-column prop="name" label="姓名" width="120" />
+        <el-table-column prop="username" label="账号" width="140" />
+        <el-table-column label="角色" width="110">
+          <template #default="{ row }">
+            <span class="role-tag" :class="`role-${row.role}`">{{
+              ROLE_NAMES[row.role] ?? row.role
+            }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="workspace" label="所属部门" width="140" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <span class="status-dot" :class="row.status === 'active' ? 'on' : 'off'" />
+            {{ row.status === 'active' ? '启用' : '禁用' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="260">
+          <template #default="{ row }">
+            <el-button text type="primary" size="small" @click="openEdit(row)"> 编辑 </el-button>
+            <el-button text size="small" style="color: #64748b" @click="resetPwd(row)">
+              重置密码
+            </el-button>
+            <el-button
+              text
+              size="small"
+              :style="{ color: row.status === 'active' ? '#EF4444' : '#10B981' }"
+              @click="toggleStatus(row)"
+            >
+              {{ row.status === 'active' ? '停用' : '启用' }}
+            </el-button>
+            <el-button text size="small" style="color: #ef4444" @click="removeUser(row)">
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      </template>
+    </el-skeleton>
+    </div>
 
     <!-- 添加/编辑弹窗（编辑模式仅允许调整角色） -->
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑用户' : '添加用户'" width="480px">
@@ -202,8 +220,8 @@ function removeUser(u: any) {
         </el-form-item>
       </el-form>
       <template #footer>
-        <AiButton @click="dialogVisible = false"> 取消 </AiButton>
-        <AiButton type="primary" @click="submit"> 保存 </AiButton>
+        <el-button @click="dialogVisible = false"> 取消 </el-button>
+        <el-button type="primary" @click="submit"> 保存 </el-button>
       </template>
     </el-dialog>
   </div>

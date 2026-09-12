@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import AiButton from '@/components/AiButton/index.vue';
+
 import { api } from '@/api';
 
 const loading = ref(false);
@@ -25,7 +26,7 @@ const memForm = reactive({
   expires_days: undefined as number | undefined,
 });
 
-async function loadMemory() {
+const loadMemory = async () => {
   try {
     const [list, stats] = await Promise.all([api.listLongMemory(), api.memoryStats()]);
     memItems.value = list.items ?? [];
@@ -33,15 +34,15 @@ async function loadMemory() {
   } catch (e: any) {
     ElMessage.error(e.message || '加载记忆失败');
   }
-}
+};
 
-function openMemCreate() {
+const openMemCreate = () => {
   memEditingId.value = null;
   Object.assign(memForm, { content: '', category: '', authorized: true, expires_days: undefined });
   memDialog.value = true;
-}
+};
 
-function openMemEdit(row: any) {
+const openMemEdit = (row: any) => {
   memEditingId.value = row.id;
   Object.assign(memForm, {
     content: row.content,
@@ -50,9 +51,9 @@ function openMemEdit(row: any) {
     expires_days: undefined,
   });
   memDialog.value = true;
-}
+};
 
-async function saveMemory() {
+const saveMemory = async () => {
   if (!memForm.content.trim()) {
     ElMessage.warning('请填写记忆内容');
     return;
@@ -79,9 +80,9 @@ async function saveMemory() {
   } finally {
     memSaving.value = false;
   }
-}
+};
 
-async function authorizeMemory(row: any) {
+const authorizeMemory = async (row: any) => {
   try {
     await api.updateLongMemory(row.id, { authorized: true });
     ElMessage.success('已授权，该记忆将在对话中生效');
@@ -89,9 +90,9 @@ async function authorizeMemory(row: any) {
   } catch (e: any) {
     ElMessage.error(e.message || '授权失败');
   }
-}
+};
 
-async function removeMemory(row: any) {
+const removeMemory = async (row: any) => {
   try {
     await ElMessageBox.confirm('确定删除这条长期记忆？删除后不可恢复。', '删除记忆', {
       type: 'warning',
@@ -102,11 +103,11 @@ async function removeMemory(row: any) {
   } catch {
     /* 取消 */
   }
-}
+};
 
 const CAT_TAG: Record<string, string> = { preference: 'success', project: 'primary', fact: 'info' };
 
-function fmtExpire(iso: string) {
+const fmtExpire = (iso: string) => {
   const d = new Date(iso);
   return d.toLocaleString('zh-CN', {
     year: 'numeric',
@@ -115,7 +116,7 @@ function fmtExpire(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
+};
 
 const form = reactive({
   llm_model: '',
@@ -130,7 +131,7 @@ const form = reactive({
   chunk_overlap: 80,
 });
 
-async function load() {
+const load = async () => {
   loading.value = true;
   try {
     const s = await api.getSettings();
@@ -151,13 +152,13 @@ async function load() {
   } finally {
     loading.value = false;
   }
-}
+};
 onMounted(() => {
   load();
   loadMemory();
 });
 
-async function save() {
+const save = async () => {
   if (form.chunk_overlap >= form.chunk_size) {
     ElMessage.warning('分块重叠需小于分块长度');
     return;
@@ -178,20 +179,28 @@ async function save() {
   } finally {
     saving.value = false;
   }
-}
+};
 </script>
 
 <template>
   <div v-loading="loading" class="settings-page">
     <div class="page-toolbar">
-      <h2 class="page-title">系统设置</h2>
-      <AiButton type="primary" round :disabled="saving" @click="save">
+      <PageHero
+        index="07"
+        title="系统设置"
+        sub="模型 · 检索 · 分块 · 记忆，保存后热更新生效"
+        :tags="[
+          { text: '平台配置', kind: 'blue' },
+          { text: '热更新', kind: 'green' },
+        ]"
+      />
+      <el-button type="primary" round :disabled="saving" @click="save">
         saving ? '保存中...' : '保存并生效' }}
-      </AiButton>
+      </el-button>
     </div>
 
     <!-- 模型参数 -->
-    <div class="set-card">
+    <div class="set-card fashion-card">
       <div class="card-head">
         <div class="card-title">🧠 模型参数</div>
         <div class="card-sub">智能问答生成模型与 RAG 检索模型（本地部署，改动对话即刻生效）</div>
@@ -223,7 +232,7 @@ async function save() {
     </div>
 
     <!-- 检索参数 -->
-    <div class="set-card">
+    <div class="set-card fashion-card">
       <div class="card-head">
         <div class="card-title">🔍 检索参数</div>
         <div class="card-sub">向量召回与重排策略（热更新，下一次提问即生效）</div>
@@ -245,7 +254,7 @@ async function save() {
     </div>
 
     <!-- 分块参数 -->
-    <div class="set-card">
+    <div class="set-card fashion-card">
       <div class="card-head">
         <div class="card-title">✂️ 分块参数</div>
         <div class="card-sub">离线入库链的递归分块策略（对之后上传的文档生效）</div>
@@ -263,7 +272,7 @@ async function save() {
     </div>
 
     <!-- 记忆管理 -->
-    <div class="set-card">
+    <div class="set-card fashion-card">
       <div class="card-head">
         <div class="card-title">🧷 记忆管理</div>
         <div class="card-sub">
@@ -277,7 +286,7 @@ async function save() {
         </div>
       </div>
       <div class="mem-toolbar">
-        <AiButton type="primary" round size="small" @click="openMemCreate"> 新增记忆 </AiButton>
+        <el-button type="primary" round size="small" @click="openMemCreate"> 新增记忆 </el-button>
       </div>
       <el-table
         :data="memItems"
@@ -393,7 +402,7 @@ async function save() {
       </div>
       <template #footer>
         <el-button @click="memDialog = false"> 取消 </el-button>
-        <AiButton type="primary" round :disabled="memSaving" @click="saveMemory"> 保存 </AiButton>
+        <el-button type="primary" round :disabled="memSaving" @click="saveMemory"> 保存 </el-button>
       </template>
     </el-dialog>
   </div>

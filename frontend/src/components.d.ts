@@ -12,7 +12,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AgentStatus: typeof import('./features/agent/components/AgentStatus.vue')['default']
-    AiButton: typeof import('./components/AiButton/index.vue')['default']
     AiInput: typeof import('./components/AiInput/index.vue')['default']
     ApprovalCard: typeof import('./features/agent/components/ApprovalCard.vue')['default']
     ChatInput: typeof import('./features/agent/components/ChatInput.vue')['default']
@@ -47,6 +46,8 @@ declare module 'vue' {
     ElRow: typeof import('element-plus/es')['ElRow']
     ElSegmented: typeof import('element-plus/es')['ElSegmented']
     ElSelect: typeof import('element-plus/es')['ElSelect']
+    ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
+    ElSkeletonItem: typeof import('element-plus/es')['ElSkeletonItem']
     ElSlider: typeof import('element-plus/es')['ElSlider']
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTable: typeof import('element-plus/es')['ElTable']
@@ -57,6 +58,8 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     FeedbackRow: typeof import('./features/agent/components/FeedbackRow.vue')['default']
     MessageItem: typeof import('./features/agent/components/MessageItem.vue')['default']
+    PageHero: typeof import('./components/PageHero/index.vue')['default']
+    PageSkeleton: typeof import('./components/PageSkeleton/index.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StreamMessage: typeof import('./features/agent/components/StreamMessage.vue')['default']

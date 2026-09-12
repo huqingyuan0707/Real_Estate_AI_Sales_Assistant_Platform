@@ -83,7 +83,7 @@ const router = createRouter({
 
 const BASE_PERM = 'chat'; // 所有角色都有的最低权限，作为无权限时的兜底落点
 
-function currentPerms(): string[] {
+const currentPerms = (): string[] => {
   // 双层读取：sessionStorage 优先，丢失（新标签页/重启浏览器）时回退 localStorage
   for (const store of [sessionStorage, localStorage]) {
     try {
@@ -95,7 +95,7 @@ function currentPerms(): string[] {
   }
   // 全部为空时兜底最低权限，避免把 /chat 也拦下造成守卫死循环（布局层会经 /auth/me 自愈补全）
   return [BASE_PERM];
-}
+};
 
 // 登录 + RBAC 守卫：未登录跳登录页；无对应权限码回智能对话
 router.beforeEach(to => {

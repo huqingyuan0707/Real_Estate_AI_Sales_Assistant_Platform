@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 /**
  * 我的 AI 服务：每个用户自行填写大模型 / 生图服务的 Base URL 与 API Key。
  * 保存即生效（仅对当前账号），无需改 .env 或重启后端；留空则回退系统默认。
@@ -6,7 +7,7 @@
  */
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import AiButton from '@/components/AiButton/index.vue';
+
 import { api } from '@/api';
 
 const loading = ref(false);
@@ -25,7 +26,7 @@ const form = reactive({
   render_api_model: '',
 });
 
-async function load() {
+const load = async () => {
   loading.value = true;
   try {
     const s: any = await api.getAiConfig();
@@ -44,10 +45,10 @@ async function load() {
   } finally {
     loading.value = false;
   }
-}
+};
 onMounted(load);
 
-async function save() {
+const save = async () => {
   saving.value = true;
   try {
     const p: Record<string, string> = {
@@ -67,9 +68,9 @@ async function save() {
   } finally {
     saving.value = false;
   }
-}
+};
 
-async function test(target: 'llm' | 'render') {
+const test = async (target: 'llm' | 'render') => {
   testing.value = target;
   try {
     const p: any = { target };
@@ -89,9 +90,9 @@ async function test(target: 'llm' | 'render') {
   } finally {
     testing.value = '';
   }
-}
+};
 
-async function clearAll() {
+const clearAll = async () => {
   try {
     await ElMessageBox.confirm(
       '将删除你保存的 AI 配置，改用系统默认（.env 中的配置）。确定吗？',
@@ -104,29 +105,31 @@ async function clearAll() {
   } catch {
     /* 取消 */
   }
-}
+};
 </script>
 
 <template>
   <div v-loading="loading" class="myai-page">
     <div class="page-toolbar">
-      <div class="toolbar-left">
-        <h2 class="page-title">我的 AI 服务</h2>
-        <div class="page-sub">
-          在这里填写你自己的 API Key，保存后<strong>立即生效且仅对当前账号有效</strong>——
-          不需要改配置文件，也不需要重启后端。留空则使用系统默认。
-        </div>
-      </div>
+      <PageHero
+        index="06"
+        title="我的 AI 服务"
+        sub="在这里填写你自己的 API Key，保存后立即生效且仅对当前账号有效"
+        :tags="[
+          { text: '个人配置', kind: 'blue' },
+          { text: '即时生效', kind: 'green' },
+        ]"
+      />
       <div class="toolbar-actions">
-        <AiButton type="primary" round :disabled="saving" @click="save">
+        <el-button type="primary" round :disabled="saving" @click="save">
           {{ saving ? '保存中...' : '保存我的配置' }}
-        </AiButton>
+        </el-button>
         <el-button plain @click="clearAll"> 清除 </el-button>
       </div>
     </div>
 
     <!-- 智能对话模型 -->
-    <div class="set-card">
+    <div class="set-card fashion-card">
       <div class="card-head">
         <div class="card-title">💬 智能对话模型</div>
         <div class="card-sub">
@@ -178,7 +181,7 @@ async function clearAll() {
     </div>
 
     <!-- 生图与空间理解 -->
-    <div class="set-card">
+    <div class="set-card fashion-card">
       <div class="card-head">
         <div class="card-title">🎨 生图与空间理解</div>
         <div class="card-sub">

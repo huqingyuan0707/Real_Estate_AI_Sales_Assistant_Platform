@@ -54,6 +54,8 @@ export default tseslint.config(
     },
     rules: {
       'prettier/prettier': 'error',
+      // 页面方法一律箭头函数：function 声明必须写成 const x = () => {} / async () => {}
+      'func-style': ['error', 'expression', { allowArrowFunctions: true }],
       'vue/multi-word-component-names': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',

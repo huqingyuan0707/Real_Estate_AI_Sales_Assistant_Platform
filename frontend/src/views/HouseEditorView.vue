@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { computed, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import AiButton from '@/components/AiButton/index.vue';
 import { api } from '@/api';
 
 /* ============================================================
@@ -30,10 +30,10 @@ const photoSize = reactive({ w: 0, h: 0 });
 const photoName = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 
-function pickPhoto() {
+const pickPhoto = () => {
   fileInput.value?.click();
-}
-function onPhotoChange(e: Event) {
+};
+const onPhotoChange = (e: Event) => {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
@@ -56,13 +56,13 @@ function onPhotoChange(e: Event) {
     img.src = url;
   };
   reader.readAsDataURL(file);
-}
-function clearPhoto() {
+};
+const clearPhoto = () => {
   photoDataUrl.value = '';
   photoB64.value = '';
   photoName.value = '';
   if (fileInput.value) fileInput.value.value = '';
-}
+};
 
 /* ---- 业主家具清单（摆进效果图的家具，按区域分组） ----
  * 数据源：后端家具清单库 GET /furniture/catalog（内置 5 分类 32 项 + 自定义项），
@@ -85,11 +85,11 @@ const FURNITURE_GROUPS = ref<
 >([]);
 const catalogLoaded = ref(false);
 const pickedFurniture = ref<string[]>([]);
-function toggleFurniture(key: string) {
+const toggleFurniture = (key: string) => {
   const i = pickedFurniture.value.indexOf(key);
   if (i >= 0) pickedFurniture.value.splice(i, 1);
   else pickedFurniture.value.push(key);
-}
+};
 
 /* 加载清单库：按分类分组渲染 chips；失败时回退内置静态分组，保证页面可用 */
 const FALLBACK_GROUPS: { group: string; items: { key: string; label: string }[] }[] = [
@@ -151,7 +151,7 @@ const FALLBACK_GROUPS: { group: string; items: { key: string; label: string }[] 
     ],
   },
 ];
-async function loadCatalog() {
+const loadCatalog = async () => {
   try {
     const data: any = await api.furnitureCatalog();
     const cats: FurnCategory[] = data.categories ?? [];
@@ -167,7 +167,7 @@ async function loadCatalog() {
   } catch {
     FURNITURE_GROUPS.value = FALLBACK_GROUPS.map(g => ({ ...g, groupId: '' }));
   }
-}
+};
 loadCatalog();
 
 /* ---- 业主清单 AI 解析：粘贴文字 / 拍照 → 结构化条目 → 自动勾选 ---- */
@@ -183,10 +183,10 @@ const parseResult = ref<{
   items: { name: string; count: string; catalog_id: string; in_catalog: boolean }[];
 } | null>(null);
 const parsePhotoInput = ref<HTMLInputElement | null>(null);
-function pickParsePhoto() {
+const pickParsePhoto = () => {
   parsePhotoInput.value?.click();
-}
-function onParsePhotoChange(e: Event) {
+};
+const onParsePhotoChange = (e: Event) => {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
@@ -197,13 +197,13 @@ function onParsePhotoChange(e: Event) {
   }
   parsePhoto.value = file;
   parsePhotoUrl.value = URL.createObjectURL(file);
-}
-function clearParsePhoto() {
+};
+const clearParsePhoto = () => {
   parsePhoto.value = null;
   parsePhotoUrl.value = '';
   if (parsePhotoInput.value) parsePhotoInput.value.value = '';
-}
-async function runParse() {
+};
+const runParse = async () => {
   if (!parseText.value.trim() && !parsePhoto.value) {
     ElMessage.warning('请粘贴清单文字或上传清单照片');
     return;
@@ -219,8 +219,8 @@ async function runParse() {
   } finally {
     parseLoading.value = false;
   }
-}
-function applyParse() {
+};
+const applyParse = () => {
   if (!parseResult.value) return;
   const hits = parseResult.value.items.filter(i => i.catalog_id && i.in_catalog);
   if (!hits.length) {
@@ -232,7 +232,7 @@ function applyParse() {
   });
   parseDialog.value = false;
   ElMessage.success(`已勾选 ${hits.length} 件清单家具`);
-}
+};
 
 /* ---- 自定义家具管理：新增 / 删除（内置项禁删） ---- */
 const addDialog = ref(false);
@@ -240,14 +240,14 @@ const addName = ref('');
 const addCategory = ref('');
 const addEn = ref('');
 const addAliases = ref('');
-async function openAddDialog() {
+const openAddDialog = async () => {
   addName.value = '';
   addEn.value = '';
   addAliases.value = '';
   addCategory.value = FURNITURE_GROUPS.value[0]?.groupId ?? '';
   addDialog.value = true;
-}
-async function submitAddItem() {
+};
+const submitAddItem = async () => {
   if (!addName.value.trim()) {
     ElMessage.warning('请输入家具名称');
     return;
@@ -269,8 +269,8 @@ async function submitAddItem() {
   } catch (e: any) {
     ElMessage.error(e?.message || '添加失败');
   }
-}
-async function removeFurnitureItem(id: string) {
+};
+const removeFurnitureItem = async (id: string) => {
   try {
     await api.furnitureDeleteItem(id);
     ElMessage.success('家具已删除');
@@ -279,7 +279,7 @@ async function removeFurnitureItem(id: string) {
   } catch (e: any) {
     ElMessage.error(e?.message || '删除失败');
   }
-}
+};
 
 /* ---- 墙面颜色色卡 ---- */
 const WALL_COLORS = [
@@ -328,7 +328,7 @@ const stageBg = computed(() => {
   return RENDER_STYLE[styleKey.value];
 });
 
-function localSimulate() {
+const localSimulate = () => {
   generating.value = true;
   generated.value = false;
   genProgress.value = 0;
@@ -341,9 +341,9 @@ function localSimulate() {
       generated.value = true;
     }
   }, 60);
-}
+};
 
-async function generate() {
+const generate = async () => {
   if (generating.value) return;
   generating.value = true;
   generated.value = false;
@@ -405,15 +405,15 @@ async function generate() {
   } catch {
     localSimulate(); // 网络异常：本地模拟保底
   }
-}
-function download() {
+};
+const download = () => {
   if (genImageUrl.value) {
     window.open(genImageUrl.value, '_blank');
     ElMessage.success('已打开原图，右键或浏览器下载按钮保存');
   } else {
     ElMessage.info('演示模式无实体文件：配置生图 API Key 或启动 ComfyUI 后可下载成图');
   }
-}
+};
 
 /* ---------------- 生成历史（后端持久化，重启不丢） ---------------- */
 const historyVisible = ref(false);
@@ -423,7 +423,7 @@ const historyTotal = ref(0);
 const historyPage = ref(1);
 const MODE_NAMES: Record<string, string> = { cloud: '云端', comfyui: 'ComfyUI', simulate: '演示' };
 
-async function loadHistory(page = 1) {
+const loadHistory = async (page = 1) => {
   historyPage.value = page;
   historyLoading.value = true;
   try {
@@ -435,15 +435,15 @@ async function loadHistory(page = 1) {
   } finally {
     historyLoading.value = false;
   }
-}
-function openHistory() {
+};
+const openHistory = () => {
   historyVisible.value = true;
   loadHistory(1);
-}
-function viewImage(url: string) {
+};
+const viewImage = (url: string) => {
   window.open(url, '_blank');
-}
-async function removeHistory(taskId: string) {
+};
+const removeHistory = async (taskId: string) => {
   try {
     await api.renderDeleteHistory(taskId);
     ElMessage.success('记录已删除');
@@ -451,15 +451,24 @@ async function removeHistory(taskId: string) {
   } catch (e: any) {
     ElMessage.error(e?.message || '删除失败');
   }
-}
+};
 </script>
 
 <template>
   <div class="engine-page">
+    <PageHero
+      index="02"
+      title="空间智能引擎"
+      sub="AI 户型解析 · 布局构思 · 一键装修图，三步闭环"
+      :tags="[
+        { text: '户型解析', kind: 'blue' },
+        { text: '三步闭环', kind: 'purple' },
+      ]"
+    />
     <!-- ============ AI 一键装修图 ============ -->
 
     <div class="step-body single">
-      <div class="pane render-pane">
+      <div class="pane render-pane fashion-card">
         <div class="render-head">
           <span class="edit-title">效果图预览</span>
           <div class="render-head-right">
@@ -483,7 +492,7 @@ async function removeHistory(taskId: string) {
                 }}</template
               >
             </span>
-            <AiButton text type="primary" size="small" @click="openHistory"> 生成历史 </AiButton>
+            <el-button text type="primary" size="small" @click="openHistory"> 生成历史 </el-button>
           </div>
         </div>
 
@@ -540,8 +549,8 @@ async function removeHistory(taskId: string) {
         </div>
 
         <div v-if="generated" class="render-ops">
-          <AiButton type="primary" round @click="download"> 下载高清图（4K） </AiButton>
-          <AiButton round @click="generated = false"> 换个风格再来 </AiButton>
+          <el-button type="primary" round @click="download"> 下载高清图（4K） </el-button>
+          <el-button round @click="generated = false"> 换个风格再来 </el-button>
         </div>
 
         <!-- AI 三步思考过程：看懂空间 → 构思布局 → 渲染效果（前两步产物透明化展示） -->
@@ -593,7 +602,7 @@ async function removeHistory(taskId: string) {
         </div>
       </div>
 
-      <div class="pane edit-pane">
+      <div class="pane edit-pane fashion-card">
         <div class="status-strip ok" />
         <div class="edit-title-row">
           <span class="edit-title">装修定制</span>
@@ -606,9 +615,9 @@ async function removeHistory(taskId: string) {
               <img :src="photoDataUrl" alt="毛坯房照片" />
               <div class="photo-meta">
                 <span>{{ photoName }} · {{ photoSize.w }}×{{ photoSize.h }}</span>
-                <AiButton text size="small" style="color: #ef4444" @click="clearPhoto">
+                <el-button text size="small" style="color: #ef4444" @click="clearPhoto">
                   移除
-                </AiButton>
+                </el-button>
               </div>
             </div>
             <div v-else class="photo-upload" @click="pickPhoto">
@@ -629,10 +638,10 @@ async function removeHistory(taskId: string) {
             ② 业主家具清单<span class="title-count">已选 {{ pickedFurniture.length }} 件</span>
           </div>
           <div class="furn-toolbar">
-            <AiButton text type="primary" size="small" @click="parseDialog = true">
+            <el-button text type="primary" size="small" @click="parseDialog = true">
               📋 粘贴/拍照解析清单
-            </AiButton>
-            <AiButton text size="small" @click="openAddDialog"> ＋ 添加家具 </AiButton>
+            </el-button>
+            <el-button text size="small" @click="openAddDialog"> ＋ 添加家具 </el-button>
           </div>
           <div class="furn-groups">
             <div v-for="g in FURNITURE_GROUPS" :key="g.group" class="furn-group">
@@ -716,9 +725,9 @@ async function removeHistory(taskId: string) {
             </button>
           </div>
           <div class="design-actions" style="margin-top: 28px">
-            <AiButton type="primary" size="large" round :loading="generating" @click="generate">
+            <el-button type="primary" size="large" round :loading="generating" @click="generate">
               {{ generated ? '重新生成' : '生成效果图' }}
-            </AiButton>
+            </el-button>
           </div>
         </div>
       </div>
@@ -753,7 +762,7 @@ async function removeHistory(taskId: string) {
                   {{ h.status === 'done' ? '成功' : '失败' }}
                 </div>
                 <div class="history-ops">
-                  <AiButton
+                  <el-button
                     v-if="h.image_url"
                     text
                     type="primary"
@@ -761,15 +770,15 @@ async function removeHistory(taskId: string) {
                     @click="viewImage(h.image_url)"
                   >
                     查看
-                  </AiButton>
-                  <AiButton
+                  </el-button>
+                  <el-button
                     text
                     size="small"
                     style="color: #ef4444"
                     @click="removeHistory(h.task_id)"
                   >
                     删除
-                  </AiButton>
+                  </el-button>
                 </div>
               </div>
             </div>
@@ -808,9 +817,9 @@ async function removeHistory(taskId: string) {
         <div class="parse-photo-zone">
           <div v-if="parsePhotoUrl" class="parse-photo-preview">
             <img :src="parsePhotoUrl" alt="清单照片" />
-            <AiButton text size="small" style="color: #ef4444" @click="clearParsePhoto">
+            <el-button text size="small" style="color: #ef4444" @click="clearParsePhoto">
               移除
-            </AiButton>
+            </el-button>
           </div>
           <div v-else class="parse-photo-upload" @click="pickParsePhoto">
             <span>📷</span>
@@ -825,7 +834,7 @@ async function removeHistory(taskId: string) {
           />
         </div>
         <div class="parse-actions">
-          <AiButton type="primary" :loading="parseLoading" @click="runParse"> 开始解析 </AiButton>
+          <el-button type="primary" :loading="parseLoading" @click="runParse"> 开始解析 </el-button>
         </div>
         <div v-if="parseResult" class="parse-result">
           <div class="parse-result-title">
@@ -849,7 +858,7 @@ async function removeHistory(taskId: string) {
             </div>
           </div>
           <div class="parse-actions">
-            <AiButton type="primary" @click="applyParse"> 勾选已匹配家具 </AiButton>
+            <el-button type="primary" @click="applyParse"> 勾选已匹配家具 </el-button>
           </div>
         </div>
       </div>
@@ -883,8 +892,8 @@ async function removeHistory(taskId: string) {
         </div>
       </div>
       <template #footer>
-        <AiButton @click="addDialog = false"> 取消 </AiButton>
-        <AiButton type="primary" @click="submitAddItem"> 保存 </AiButton>
+        <el-button @click="addDialog = false"> 取消 </el-button>
+        <el-button type="primary" @click="submitAddItem"> 保存 </el-button>
       </template>
     </el-dialog>
   </div>

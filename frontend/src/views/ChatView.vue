@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -13,7 +14,7 @@ import {
   Select,
 } from '@element-plus/icons-vue';
 import { installedSkills, messages as mockMessages, sessions as mockSessions } from '@/mock';
-import AiButton from '@/components/AiButton/index.vue';
+
 import { api } from '@/api';
 
 const router = useRouter();
@@ -29,32 +30,45 @@ const grouped = computed(() => {
   return g;
 });
 
-onMounted(async () => {
+/** 本地新建、后端可能尚未落库的会话 id（首轮问答进行中的短暂空窗） */
+const localOnlyIds = new Set<string>();
+
+/** 拉取真实历史会话列表（后端不可用时保留现有列表 / mock 种子） */
+const refreshSessions = async () => {
+  if (streaming.value) return; // 生成中不打断当前会话
   try {
     const list = await api.listSessions();
-    if (Array.isArray(list) && list.length) {
-      sessions.splice(
-        0,
-        sessions.length,
-        ...list.map((s: any) => ({
-          threadId: s.thread_id ?? s.threadId,
-          title: s.title,
-          group: s.group ?? '今天',
-          time: s.time ?? '',
-        }))
-      );
-      activeId.value = sessions[0]?.threadId ?? 't-1001';
-      switchSession(activeId.value);
+    if (!Array.isArray(list) || !list.length) return;
+    const mapped = list.map((s: any) => ({
+      threadId: s.thread_id ?? s.threadId,
+      title: s.title,
+      group: s.group ?? '今天',
+      time: s.time ?? '',
+    }));
+    const cur = activeId.value;
+    if (mapped.some(s => s.threadId === cur)) {
+      localOnlyIds.delete(cur);
+    } else if (localOnlyIds.has(cur)) {
+      // 刚发出的会话后端仍在写盘：先保留在顶部，避免"发完就从列表消失"
+      const local = sessions.find(s => s.threadId === cur);
+      if (local) mapped.unshift(local);
+    }
+    sessions.splice(0, sessions.length, ...mapped);
+    if (!sessions.some(s => s.threadId === activeId.value)) {
+      activeId.value = sessions[0]?.threadId ?? '';
+      if (activeId.value) switchSession(activeId.value);
     }
   } catch {
     /* 后端不可用：保持 mock 种子 */
   }
-});
+};
 
-function selectSession(id: string) {
+onMounted(refreshSessions);
+
+const selectSession = (id: string) => {
   activeId.value = id;
-}
-function renameSession(s: { title: string }) {
+};
+const renameSession = (s: { title: string }) => {
   ElMessageBox.prompt('修改会话名称', '重命名', {
     inputValue: s.title,
     confirmButtonText: '保存',
@@ -64,27 +78,39 @@ function renameSession(s: { title: string }) {
       if (value?.trim()) s.title = value.trim();
     })
     .catch(() => {});
-}
-function removeSession(id: string) {
+};
+const removeSession = (id: string) => {
   ElMessageBox.confirm('删除后该会话不可恢复，确认删除？', '删除会话', {
     type: 'warning',
     confirmButtonText: '删除',
     cancelButtonText: '取消',
   })
-    .then(() => {
+    .then(async () => {
+      try {
+        // 必须同步删后端短期记忆，否则刷新后会话会"复活"
+        await api.deleteSession(id);
+      } catch {
+        /* 后端无此会话（本地新建未落库）时按已删除处理 */
+      }
       const i = sessions.findIndex(s => s.threadId === id);
       if (i > -1) sessions.splice(i, 1);
-      if (activeId.value === id) activeId.value = sessions[0]?.threadId ?? '';
+      localOnlyIds.delete(id);
+      if (activeId.value === id) {
+        activeId.value = sessions[0]?.threadId ?? '';
+        if (activeId.value) switchSession(activeId.value);
+        else threadMessages.value = [];
+      }
       ElMessage.success('已删除');
     })
     .catch(() => {});
-}
-function newSession() {
+};
+const newSession = () => {
   const id = `t-${Date.now()}`;
+  localOnlyIds.add(id);
   sessions.unshift({ threadId: id, title: '新对话', group: '今天', time: '刚刚' });
   activeId.value = id;
   threadMessages.value = [];
-}
+};
 
 /* ---------------- 消息流 ---------------- */
 const threadMessages = ref<any[]>([...(mockMessages['t-1001'] ?? [])]);
@@ -95,10 +121,10 @@ const phase = ref(0);
 const phaseText = ref('🧠 规划中...');
 const PHASES = ['🧠 规划中...', '⚙️ 执行中...', '✅ 校验中...', '✍️ 生成回答'];
 
-function toggleRefs(id: string) {
+const toggleRefs = (id: string) => {
   const s = expandedRefs.value;
   s.has(id) ? s.delete(id) : s.add(id);
-}
+};
 
 /** 密级中文化（引用与知识库一致） */
 const LEVEL_TAG: Record<string, string> = {
@@ -108,7 +134,7 @@ const LEVEL_TAG: Record<string, string> = {
 };
 
 /* ---------------- 反馈闭环：采纳 / 不采纳 → 知识质量与缺口分析 ---------------- */
-async function rateMessage(m: any, rating: 'up' | 'down') {
+const rateMessage = async (m: any, rating: 'up' | 'down') => {
   const idx = threadMessages.value.findIndex(x => x.id === m.id);
   const prev = threadMessages.value[idx - 1];
   try {
@@ -128,9 +154,9 @@ async function rateMessage(m: any, rating: 'up' | 'down') {
   } catch (e: any) {
     ElMessage.error(e.message || '反馈提交失败');
   }
-}
+};
 /** 切换会话：优先从后端恢复历史（短期记忆/消息存储），失败回退 mock */
-async function switchSession(id: string) {
+const switchSession = async (id: string) => {
   activeId.value = id;
   try {
     const detail = await api.getSession(id);
@@ -151,17 +177,17 @@ async function switchSession(id: string) {
     /* 404 = 后端无此会话（如本地新建），回退演示 */
   }
   threadMessages.value = [...(mockMessages[id] ?? [])];
-}
-function openHouse() {
+};
+const openHouse = () => {
   router.push('/house');
-}
+};
 
 // 流式演示：四阶段状态条 → 打字机输出 → 引用来源 + 户型卡片
 const DEMO_REPLY =
   '🌟滨江花园A户型 | 建面98㎡ 三房两厅\n\n南北通透，双阳台对流设计，午后穿堂风轻拂整屋。' +
   '主卧朝南带飘窗，四季阳光满屋。U型厨房紧邻餐边区，动线高效。均价2.1万/㎡，本周到访享开盘额外98折！';
 
-function sendDemo() {
+const sendDemo = () => {
   if (streaming.value) return;
   const content = draft.value;
   if (!content.trim()) return;
@@ -260,6 +286,7 @@ function sendDemo() {
             m.faith = payload.faithfulness ?? null;
             m.model = payload.model ?? '';
             streaming.value = false;
+            refreshSessions(); // 问答落盘后刷新列表：标题变为首句、排序与时间即时更新
             return;
           }
         }
@@ -268,10 +295,10 @@ function sendDemo() {
       streaming.value = false;
     })
     .catch(() => simulateLocal(ensureAI)); // 客户端兜底：网络/后端异常时本地模拟
-}
+};
 
 /** 客户端降级演示：本地模拟四阶段 + 打字机（与后端演示流观感一致） */
-function simulateLocal(ensureAI: () => any): Promise<void> {
+const simulateLocal = (ensureAI: () => any): Promise<void> => {
   return new Promise(resolve => {
     const timer = setInterval(() => {
       phase.value += 1;
@@ -300,14 +327,14 @@ function simulateLocal(ensureAI: () => any): Promise<void> {
       }
     }, 700);
   });
-}
+};
 
-function scrollBottom() {
+const scrollBottom = () => {
   nextTick(() => {
     const el = document.querySelector('.msg-flow');
     el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   });
-}
+};
 
 /* ---------------- 输入区 ---------------- */
 const draft = ref('');
@@ -316,20 +343,20 @@ const activeSkill = ref('');
 const showSkillMenu = ref(false);
 const canSend = computed(() => draft.value.trim().length > 0);
 
-function onInput() {
+const onInput = () => {
   showSkillMenu.value = draft.value.endsWith('@');
   if (!draft.value.includes('@')) activeSkill.value = '';
-}
-function pickSkill(name: string) {
+};
+const pickSkill = (name: string) => {
   activeSkill.value = name;
   draft.value = draft.value.replace(/@$/, '');
   showSkillMenu.value = false;
   draft.value += `${name} `;
-}
-function addAttachment() {
+};
+const addAttachment = () => {
   attachments.value.push(`户型图${attachments.value.length + 1}.jpg`);
-}
-async function clearContext() {
+};
+const clearContext = async () => {
   try {
     await ElMessageBox.confirm(
       '将清空本会话的短期记忆（多轮上下文），开始全新话题。长期记忆不受影响。',
@@ -341,21 +368,30 @@ async function clearContext() {
   } catch {
     /* 取消 */
   }
-}
-function onKeydown(e: KeyboardEvent) {
+};
+const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     if (canSend.value) sendDemo();
   }
-}
+};
 </script>
 
 <template>
   <div class="chat-page">
     <!-- 左侧会话列表：悬浮卡片式 -->
-    <aside class="session-panel">
+    <aside class="session-panel fashion-card">
+      <PageHero
+        index="01"
+        title="智能对话"
+        compact
+        :tags="[
+          { text: 'AI 问答', kind: 'blue' },
+          { text: 'SSE 实时', kind: 'green' },
+        ]"
+      />
       <div class="session-head">
-        <AiButton type="primary" class="new-btn" round @click="newSession"> ✨ 新建对话 </AiButton>
+        <el-button type="primary" class="new-btn" round @click="newSession"> ✨ 新建对话 </el-button>
       </div>
       <div class="session-list">
         <template v-for="(list, group) in grouped" :key="group">
@@ -417,9 +453,9 @@ function onKeydown(e: KeyboardEvent) {
               <div v-if="m.rejected" class="bubble bubble-ai rejected">
                 <div class="refuse-bar">
                   <span class="refuse-text">⚠️ 知识库暂无相关内容</span>
-                  <AiButton text type="primary" size="small" @click="router.push('/knowledge')">
+                  <el-button text type="primary" size="small" @click="router.push('/knowledge')">
                     📤 去上传资料
-                  </AiButton>
+                  </el-button>
                 </div>
               </div>
               <div v-else class="bubble bubble-ai">
@@ -561,7 +597,7 @@ function onKeydown(e: KeyboardEvent) {
               </el-icon>
             </el-tooltip>
           </div>
-          <AiButton
+          <el-button
             type="primary"
             size="large"
             class="send-btn"
@@ -570,7 +606,7 @@ function onKeydown(e: KeyboardEvent) {
             @click="sendDemo"
           >
             发送
-          </AiButton>
+          </el-button>
         </div>
 
         <!-- @ 技能浮层 -->

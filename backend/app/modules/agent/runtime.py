@@ -18,11 +18,12 @@ class SimplePlanner:
 
 
 class AgentRuntime:
-    def __init__(self, planner=None, tool_executor=None, llm=None, policy=None, memory=None):
+    def __init__(self, planner=None, tool_executor=None, llm=None, policy=None, memory=None,
+                 registry=None):
         from app.modules.agent.tools.executor import ToolExecutor
 
         self.planner = planner or SimplePlanner()
-        self.tool_executor = tool_executor or ToolExecutor()
+        self.tool_executor = tool_executor or ToolExecutor(registry=registry)
         self.llm = llm  # 可选：外部模型网关，未注入则用观察拼装答案
         self.policy = policy
         self.memory = memory

@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import PageHero from '@/components/PageHero/index.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { skills as mockSkills } from '@/mock';
 import { api } from '@/api';
-import AiButton from '@/components/AiButton/index.vue';
+
 
 /* ---------------- 筛选 + 卡片网格（规范 6.1 / 6.2），数据接后端 Skill 市场接口 ---------------- */
 const filter = ref<'all' | 'installed' | 'not'>('all');
@@ -20,7 +21,7 @@ const filtered = computed(() =>
 );
 const installedCount = computed(() => list.filter(s => s.installed).length);
 
-function normalize(s: any) {
+const normalize = (s: any) => {
   return {
     id: s.id,
     name: s.name,
@@ -31,7 +32,7 @@ function normalize(s: any) {
     installed: !!s.installed,
     installing: false,
   };
-}
+};
 
 onMounted(async () => {
   try {
@@ -42,7 +43,7 @@ onMounted(async () => {
   }
 });
 
-async function install(s: any) {
+const install = async (s: any) => {
   s.installing = true;
   try {
     await api.installSkill(s.id);
@@ -53,9 +54,9 @@ async function install(s: any) {
   } finally {
     s.installing = false;
   }
-}
+};
 
-async function uninstall(s: any) {
+const uninstall = async (s: any) => {
   try {
     await ElMessageBox.confirm(`卸载后「${s.name}」将无法被 @ 调用，确认卸载？`, '卸载 Skill', {
       type: 'warning',
@@ -72,7 +73,7 @@ async function uninstall(s: any) {
   } catch (e: any) {
     ElMessage.warning(e?.message ?? '卸载失败');
   }
-}
+};
 
 /* ---------------- Skill 试运行（POST /skills/{id}/invoke，SSE 流式输出） ---------------- */
 const invokeVisible = ref(false);
@@ -82,15 +83,15 @@ const invokeOutput = ref('');
 const invokePhase = ref('');
 const invoking = ref(false);
 
-function openInvoke(s: any) {
+const openInvoke = (s: any) => {
   invokeTarget.value = s;
   invokeInput.value = '滨江花园A户型，建面98㎡，三房两厅，南北通透，主卧朝南带飘窗，均价2.1万/㎡';
   invokeOutput.value = '';
   invokePhase.value = '';
   invokeVisible.value = true;
-}
+};
 
-async function runInvoke() {
+const runInvoke = async () => {
   const target = invokeTarget.value;
   if (!target || !invokeInput.value.trim() || invoking.value) return;
   invoking.value = true;
@@ -125,23 +126,32 @@ async function runInvoke() {
     invoking.value = false;
     invokePhase.value = '';
   }
-}
+};
 </script>
 
 <template>
   <div class="market-page">
     <!-- 页面头部 80px -->
     <div class="market-head">
-      <div>
-        <h2 class="market-title">Skill 市场</h2>
-        <p class="market-desc">安装即用，扩展 AI 能力 · 已安装 {{ installedCount }} 个</p>
-      </div>
+      <PageHero
+        index="04"
+        title="Skill 市场"
+        sub="安装即用，扩展 AI 能力"
+        :tags="[
+          { text: '能力扩展', kind: 'blue' },
+          { text: '热插拔', kind: 'purple' },
+        ]"
+      >
+        <span class="pastel-tag pastel-tag--orange"
+          >已安装 <b>{{ installedCount }}</b></span
+        >
+      </PageHero>
       <el-segmented v-model="filter" :options="filterOptions" size="large" />
     </div>
 
     <!-- 卡片网格 4列 -->
     <div class="card-grid">
-      <div v-for="s in filtered" :key="s.id" class="skill-card">
+      <div v-for="s in filtered" :key="s.id" class="skill-card fashion-card">
         <span class="os-tag"
           ><i class="mini-dot" :class="s.openSource ? 'd-open' : 'd-prop'" />{{
             s.openSource ? '开源' : '专有'
@@ -163,7 +173,7 @@ async function runInvoke() {
         </div>
         <div class="card-footer">
           <!-- 未安装 -->
-          <AiButton
+          <el-button
             v-if="!s.installed"
             class="install-btn"
             round
@@ -171,14 +181,14 @@ async function runInvoke() {
             @click="install(s)"
           >
             {{ s.installing ? '安装中...' : '安装' }}
-          </AiButton>
+          </el-button>
           <!-- 已安装 -->
           <template v-else>
             <span class="enabled-tag">✓ 已启用</span>
-            <AiButton text type="primary" size="small" @click="openInvoke(s)"> 试运行 </AiButton>
-            <AiButton text size="small" style="color: var(--reai-text-muted)" @click="uninstall(s)">
+            <el-button text type="primary" size="small" @click="openInvoke(s)"> 试运行 </el-button>
+            <el-button text size="small" style="color: var(--reai-text-muted)" @click="uninstall(s)">
               卸载
-            </AiButton>
+            </el-button>
           </template>
         </div>
       </div>
@@ -208,8 +218,8 @@ async function runInvoke() {
         {{ invokeOutput }}
       </div>
       <template #footer>
-        <AiButton @click="invokeVisible = false"> 关闭 </AiButton>
-        <AiButton type="primary" :loading="invoking" @click="runInvoke"> 运行 </AiButton>
+        <el-button @click="invokeVisible = false"> 关闭 </el-button>
+        <el-button type="primary" :loading="invoking" @click="runInvoke"> 运行 </el-button>
       </template>
     </el-dialog>
   </div>

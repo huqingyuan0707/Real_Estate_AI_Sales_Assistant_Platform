@@ -4,6 +4,15 @@ from pathlib import Path
 
 
 def load_golden(path: str | None = None) -> list[dict]:
+    raw = _load_raw(path)
+    # 兼容两种形态：list[case] / {cases: [...]}（本仓 rag_golden.json 为后者）
+    if isinstance(raw, dict):
+        cases = raw.get("cases", raw.get("data", []))
+        return cases if isinstance(cases, list) else []
+    return raw if isinstance(raw, list) else []
+
+
+def _load_raw(path: str | None = None):
     candidates = [
         path,
         "backend/tests/rag_golden.json",

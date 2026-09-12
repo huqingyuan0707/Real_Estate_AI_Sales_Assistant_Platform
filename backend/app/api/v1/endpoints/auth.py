@@ -80,6 +80,19 @@ def login(body: LoginRequest):
     return ok(_login_payload(user), "登录成功")
 
 
+@router.get("/me")
+def auth_me(user: dict = Depends(get_current_user)):
+    """会话自愈：按 Token 重取用户信息与权限集（前端刷新/权限缓存丢失时调用）"""
+    fresh = user_store.get(user["username"]) or user
+    return ok({
+        "username": fresh["username"],
+        "name": fresh.get("name") or fresh["username"],
+        "role": fresh["role"],
+        "permissions": sorted(permissions_of(fresh["role"])),
+        "totp_enabled": bool(fresh.get("totp_enabled")),
+    })
+
+
 # ---------------- TOTP 双因素（等保：身份鉴别-双因素） ----------------
 
 @router.post("/totp/setup", dependencies=[Depends(get_current_user)])

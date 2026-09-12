@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.config import settings
 from app.core.events import on_shutdown, on_startup
+from app.core.exceptions import register_exception_handlers
 from app.core.middleware import TraceMiddleware
 
 
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    register_exception_handlers(app)
 
     @app.get("/api/health", tags=["系统"])
     def health():

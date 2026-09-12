@@ -29,20 +29,10 @@ async def test_runtime_min_loop_no_llm():
 
     reg = ToolRegistry()
     reg.register("knowledge.search", {"type": "object"}, fake_tool)
-    import app.modules.agent.runtime as rt
-
-    old = rt.ToolExecutor
-    rt.ToolExecutor = lambda: ToolExecutor()  # noqa: E731
-    try:
-        import app.modules.agent.tools.executor as ex
-
-        old_reg = ex.registry
-        ex.registry = reg
-        state = await AgentRuntime(policy=PolicyEngine()).run("test")
-        assert state.phase == AgentPhase.DONE and "fake-hit" in state.answer
-    finally:
-        ex.registry = old_reg
-        rt.ToolExecutor = old
+    state = await AgentRuntime(
+        tool_executor=ToolExecutor(registry=reg), policy=PolicyEngine(registry=reg),
+    ).run("test")
+    assert state.phase == AgentPhase.DONE and "fake-hit" in state.answer
 
 
 @pytest.mark.asyncio
@@ -56,37 +46,30 @@ async def test_executor_idempotent_and_forbidden():
     reg = ToolRegistry()
     reg.register("t.once", {"type": "object"}, h, idempotent=True)
     reg.register("t.secret", {"type": "object"}, h, scopes=["kb"])
-    import app.modules.agent.tools.executor as ex
-
-    old = ex.registry
-    ex.registry = reg
-    try:
-        exe = ToolExecutor()
-        a = AgentAction(type="tool", name="t.once", args={}, idempotency_key="k1")
-        await exe.execute(a, {"role": "member", "username": "u"})
-        await exe.execute(a, {"role": "member", "username": "u"})
-        assert calls["n"] == 1  # 幂等命中
-        with pytest.raises(PermissionError):
-            await exe.execute(AgentAction(type="tool", name="t.secret", args={}),
-                              {"role": "member", "username": "u"})
-    finally:
-        ex.registry = old
+    exe = ToolExecutor(registry=reg)
+    a = AgentAction(type="tool", name="t.once", args={}, idempotency_key="k1")
+    await exe.execute(a, {"role": "member", "username": "u"})
+    await exe.execute(a, {"role": "member", "username": "u"})
+    assert calls["n"] == 1  # 幂等命中
+    with pytest.raises(PermissionError):
+        await exe.execute(AgentAction(type="tool", name="t.secret", args={}),
+                          {"role": "member", "username": "u"})
 
 
 @pytest.mark.asyncio
 async def test_policy_approval_branch():
     reg = ToolRegistry()
     reg.register("send_email", {"type": "object"}, lambda **k: {}, needs_approval=True)
-    import app.modules.agent.tools.executor as ex
+    eng = PolicyEngine(registry=reg)
+    assert await eng.check(AgentAction(type="tool", name="send_email", args={}),
+                           {"role": "admin"}) == "approval"
 
-    old = ex.registry
-    ex.registry = reg
-    try:
-        eng = PolicyEngine()
-        assert await eng.check(AgentAction(type="tool", name="send_email", args={}),
-                               {"role": "admin"}) == "approval"
-        state = await AgentRuntime(policy=eng).run("send email please")
-        # 危险关键词/审批工具 → WAITING_APPROVAL 暂停
-        assert state.phase in (AgentPhase.WAITING_APPROVAL, AgentPhase.DONE, AgentPhase.FAILED)
-    finally:
-        ex.registry = old
+    class _ApprovalPlanner:
+        async def next(self, state):
+            return AgentAction(type="tool", name="send_email", args={"to": "a@b.c"})
+
+    state = await AgentRuntime(
+        planner=_ApprovalPlanner(), tool_executor=ToolExecutor(registry=reg),
+        policy=eng).run("send email please")
+    # 审批工具 → WAITING_APPROVAL 暂停
+    assert state.phase == AgentPhase.WAITING_APPROVAL

@@ -12,12 +12,20 @@
 .el-button--primary {
   --el-button-bg-color: var(--el-color-primary);
   --el-button-border-color: var(--el-color-primary);
-  --el-button-hover-bg-color: #5e7f9f;
-  --el-button-hover-border-color: #5e7f9f;
-  --el-button-active-bg-color: #3e5f7f;
-  --el-button-active-border-color: #3e5f7f;
-  --el-button-disabled-bg-color: #b8ccdb;
-  --el-button-disabled-border-color: #b8ccdb;
+  --el-button-hover-bg-color: #4d77f7;
+  --el-button-hover-border-color: #4d77f7;
+  --el-button-active-bg-color: #1e40d8;
+  --el-button-active-border-color: #1e40d8;
+  --el-button-disabled-bg-color: #9db4fa;
+  --el-button-disabled-border-color: #9db4fa;
+  box-shadow: 0 4px 12px rgba(43, 92, 245, 0.28);
+}
+.el-button--primary:hover {
+  box-shadow: 0 6px 16px rgba(43, 92, 245, 0.36);
+  transform: translateY(-1px);
+}
+.el-button.is-round {
+  border-radius: 9999px;
 }
 /* 大按钮：主 CTA（发送/确认保存）；小按钮：表格操作 */
 .el-button--large {
@@ -31,8 +39,10 @@
   padding: 0 12px;
 }
 .el-button--default {
-  --el-button-text-color: #4a5568;
+  --el-button-text-color: #3d4463;
   --el-button-hover-text-color: var(--el-color-primary);
+  --el-button-hover-border-color: #b9c6f8;
+  --el-button-hover-bg-color: #eef2fe;
 }
 
 /* 文字按钮 */
@@ -49,7 +59,7 @@
 .el-input__wrapper.is-focus {
   box-shadow:
     0 0 0 1px var(--el-color-primary) inset,
-    0 0 0 3px rgba(79, 111, 143, 0.12);
+    0 0 0 3px rgba(43, 92, 245, 0.14);
 }
 .el-textarea__inner {
   border-radius: var(--el-border-radius-base);
@@ -67,12 +77,13 @@
 }
 
 /* ---------- 3.3 表格 ElTable：去竖线，仅横线 ---------- */
+/* ---------- 表格：表头粉彩 ---------- */
 .el-table {
   border: none;
-  --el-table-border-color: #edf2f7;
-  --el-table-header-bg-color: #f8fafc;
-  --el-table-header-text-color: #94a3b8;
-  --el-table-row-hover-bg-color: #f8fafc;
+  --el-table-border-color: #eceef8;
+  --el-table-header-bg-color: #eef2fe;
+  --el-table-header-text-color: #5a6486;
+  --el-table-row-hover-bg-color: #f5f7fe;
   --el-table-tr-bg-color: #ffffff;
 }
 .el-table .el-table__header-wrapper th {
@@ -86,7 +97,7 @@
   color: #1a202c;
 }
 .el-table .el-table__cell {
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid #eceef8;
 }
 .el-table--border,
 .el-table--border .el-table__cell {
@@ -96,16 +107,17 @@
   display: none;
 }
 
-/* ---------- 3.4 标签 ElTag ---------- */
+/* ---------- 3.4 标签 ElTag：粉彩胶囊 ---------- */
 .el-tag {
-  border-radius: var(--el-border-radius-small);
+  border-radius: 9999px;
   border: none;
-  font-weight: 400;
+  font-weight: 500;
   padding: 0 12px;
 }
 .el-tag--small {
-  height: 20px;
-  padding: 0 8px;
+  height: 22px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 .el-tag--default {
   height: 24px;
@@ -113,11 +125,38 @@
 .el-tag--large {
   height: 28px;
 }
+/* 粉彩配色跟随令牌 */
+.el-tag--primary {
+  --el-tag-bg-color: var(--reai-tag-blue-bg);
+  --el-tag-text-color: var(--reai-tag-blue-fg);
+  --el-tag-hover-color: var(--reai-tag-blue-fg);
+}
+.el-tag--success {
+  --el-tag-bg-color: var(--reai-tag-green-bg);
+  --el-tag-text-color: var(--reai-tag-green-fg);
+  --el-tag-hover-color: var(--reai-tag-green-fg);
+}
+.el-tag--warning {
+  --el-tag-bg-color: var(--reai-tag-yellow-bg);
+  --el-tag-text-color: var(--reai-tag-yellow-fg);
+  --el-tag-hover-color: var(--reai-tag-yellow-fg);
+}
+.el-tag--danger {
+  --el-tag-bg-color: var(--reai-tag-red-bg);
+  --el-tag-text-color: var(--reai-tag-red-fg);
+  --el-tag-hover-color: var(--reai-tag-red-fg);
+}
+.el-tag--info {
+  --el-tag-bg-color: var(--reai-tag-purple-bg);
+  --el-tag-text-color: var(--reai-tag-purple-fg);
+  --el-tag-hover-color: var(--reai-tag-purple-fg);
+}
 
 /* ---------- 3.5 弹窗 ElDialog ---------- */
 .el-dialog {
-  border-radius: 12px;
+  border-radius: 20px;
   box-shadow: var(--el-box-shadow-dark);
+  overflow: hidden;
 }
 .el-dialog__header {
   padding: 24px 24px 12px;
@@ -146,32 +185,35 @@
   background: transparent;
 }
 .el-menu .el-menu-item {
-  border-radius: 8px;
+  border-radius: 12px;
   height: 44px;
   margin: 2px 8px;
 }
 .el-menu .el-menu-item:hover {
-  background: #f8fafc;
+  background: #eef2fe;
 }
+/* 选中态：实心蓝胶囊 + 白字（截图选中风） */
 .el-menu .el-menu-item.is-active {
-  background: #f0f4f8;
-  color: var(--el-color-primary);
+  background: var(--reai-gradient-primary);
+  color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 4px 12px rgba(43, 92, 245, 0.32);
 }
 /* 折叠态菜单弹层 */
 .el-menu--vertical .el-menu-item.is-active {
-  background: #f0f4f8;
+  background: var(--el-color-primary);
 }
 
 /* ---------- 3.7 卡片 ElCard ---------- */
 .el-card {
-  border-radius: 12px;
+  border-radius: 16px;
   border: none;
   box-shadow: var(--el-box-shadow-light);
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
 }
 .el-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+  box-shadow: 0 12px 32px rgba(43, 92, 245, 0.12);
+  transform: translateY(-2px);
 }
 .el-card__body {
   padding: 20px;
@@ -202,23 +244,20 @@
 .el-select__wrapper.is-focused {
   box-shadow:
     0 0 0 1px var(--el-color-primary) inset,
-    0 0 0 3px rgba(79, 111, 143, 0.12);
+    0 0 0 3px rgba(43, 92, 245, 0.14);
 }
 .el-select-dropdown__item.is-hovering {
-  background: #f0f4f8;
+  background: #eef2fe;
 }
 .el-select-dropdown__item.is-selected {
-  background: #f0f4f8;
+  background: #eef2fe;
   color: var(--el-color-primary);
   font-weight: 500;
-}
-.el-popper {
-  border-radius: 10px;
 }
 
 /* ---------- 消息弹框 / 抽屉 / 分段控制器 一并跟随 ---------- */
 .el-message-box {
-  border-radius: 12px;
+  border-radius: 20px;
 }
 .el-drawer__header {
   margin-bottom: 12px;
@@ -230,15 +269,21 @@
   --el-segmented-item-selected-color: #ffffff;
 }
 .el-message {
-  border-radius: 10px;
+  border-radius: 9999px;
   border: none;
   box-shadow: var(--el-box-shadow-light);
 }
 .el-badge__content {
   border: none;
+  background: #f05252;
+  font-weight: 600;
 }
 .el-dropdown-menu {
-  border-radius: 10px;
+  border-radius: 14px;
+  padding: 6px;
+}
+.el-popper {
+  border-radius: 14px;
 }
 .el-tooltip__popper {
   font-size: 12px;

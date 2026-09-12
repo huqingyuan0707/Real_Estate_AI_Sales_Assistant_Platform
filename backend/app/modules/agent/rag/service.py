@@ -1,32 +1,37 @@
 """RAG 适配层：复用现有 services/rag 双路召回链路，对外提供统一 retrieve 接口。"""
-from app.config import settings
+import inspect
 
 
 class RagService:
     async def retrieve(self, query: str, user: dict | None = None, top_k: int = 5) -> list:
         try:
-            from app.services import rag as rag_svc
             import asyncio
 
-            for attr in ("aretrieve", "asearch", "retrieve", "search"):
-                fn = getattr(rag_svc, attr, None)
-                if fn is None:
-                    continue
-                try:
-                    if asyncio.iscoroutinefunction(fn):
-                        out = await fn(query, top_k=top_k)
-                    else:
-                        out = await asyncio.to_thread(fn, query, top_k=top_k)
-                except TypeError:
-                    try:
-                        out = await fn(query) if asyncio.iscoroutinefunction(fn) else await asyncio.to_thread(fn, query)
-                    except Exception:
-                        continue
-                docs = out.get("docs", out) if isinstance(out, dict) else out
-                return self._tenant_filter(docs or [], user)[:top_k]
+            from app.services import rag as rag_svc
+
+            fn = getattr(rag_svc, "retrieve", None)
+            if fn is None:
+                return []
+            # 按真实签名传参（retrieve(query, ctx=None, filters=None)），只传其接受的参数
+            kwargs: dict = {}
+            try:
+                params = inspect.signature(fn).parameters
+                if "top_k" in params:
+                    kwargs["top_k"] = top_k
+                if "ctx" in params and user is not None:
+                    kwargs["ctx"] = {"user": user}
+            except Exception:
+                pass
+            if asyncio.iscoroutinefunction(fn):
+                out = await fn(query, **kwargs)
+            else:
+                out = await asyncio.to_thread(fn, query, **kwargs)
+            # 真实返回 tuple(docs, rejected, meta)；兼容 dict/list 变体
+            docs = out[0] if isinstance(out, tuple) and out else (
+                out.get("docs", out) if isinstance(out, dict) else out)
+            return self._tenant_filter(list(docs or []), user)[:top_k]
         except Exception:
-            pass
-        return []
+            return []
 
     def _tenant_filter(self, docs: list, user: dict | None) -> list:
         # 权限过滤：仅保留用户可见知识（tenant/workspace 字段一致或无标记的公开片段）
