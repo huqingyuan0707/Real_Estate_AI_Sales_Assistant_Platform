@@ -1,0 +1,58 @@
+# ============================================================
+#  房地产 AI 销售助手平台 —— Git 忽略规则
+#  原则：依赖 / 构建产物 / 虚拟环境 / 运行时数据 / 密钥 / 日志 一律不入库
+# ============================================================
+
+# ---------- Node / 前端依赖与产物 ----------
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+build/
+
+# ---------- Python / 虚拟环境 ----------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 环境变量：只保留模板与非机密配置 ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+!frontend/.env.development
+!frontend/.env.production
+
+# ---------- 运行时数据（程序启动时会自动重建）----------
+/data/
+/backend/data/
+/backend/uploads/
+logs/
+
+# ---------- 日志与临时调试产物 ----------
+*.log
+.tmp_*
+tmp/
+temp/
+*.tmp
+*.bak
+answer_sse.txt
+q.json
+new-session---*.json
+
+# ---------- IDE / 系统 ----------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------- CodeBuddy：保留 memory（项目记忆），忽略协作/运行态 ----------
+.codebuddy/teams/
+.codebuddy/automations/
+.codebuddy/*.log

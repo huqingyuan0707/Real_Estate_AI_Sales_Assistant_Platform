@@ -1,0 +1,22 @@
+{
+  "description": "RAG 检索质量黄金集（离线评估与发布门禁）。expect_docs 用文件名匹配，should_reject 表示应拒答的无关问题。",
+  "min_metrics": {
+    "recall_at_k": 0.75,
+    "mrr": 0.6,
+    "reject_accuracy": 0.5
+  },
+  "cases": [
+    { "q": "本地户籍家庭最多可以买几套房？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "非本地户籍买房需要缴纳多久社保？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "首套房最低首付比例是多少？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "公积金贷款最高额度是多少？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "契税税率怎么计算？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "房子持有不满两年出售要交增值税吗？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "得房率一般是多少？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "容积率是什么意思？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "新建商品住房几年后才能上市交易？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "个人转让唯一住房免个税的条件是什么？", "expect_docs": ["kb_sample.md"], "should_reject": false },
+    { "q": "量子计算机的退相干时间如何测量？", "expect_docs": [], "should_reject": true },
+    { "q": "如何用 Python 实现快速排序？", "expect_docs": [], "should_reject": true }
+  ]
+}

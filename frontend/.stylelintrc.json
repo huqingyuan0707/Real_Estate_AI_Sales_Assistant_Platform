@@ -1,0 +1,15 @@
+{
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-html/vue",
+    "stylelint-config-recess-order"
+  ],
+  "plugins": ["stylelint-config-html"],
+  "rules": {
+    "selector-class-pattern": null,
+    "custom-property-pattern": null,
+    "color-hex-case": "lower",
+    "color-hex-length": "short",
+    "unit-case": "lower"
+  }
+}

@@ -1,0 +1,29 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+pydantic-settings>=2.6
+python-multipart>=0.0.20
+httpx>=0.27
+
+# ---- 知识库解析（核心链路使用） ----
+pypdf>=4.0
+python-docx>=1.1
+openpyxl>=3.1
+python-pptx>=1.0            # PPT 解析
+sentence-transformers>=3.0
+chromadb>=0.5
+
+# ---- 可选依赖（未安装/未配置时自动回退内置实现，见 services/vector_store.py 等） ----
+# pymupdf>=1.24              # 扫描件 PDF 渲染（OCR 前置）
+# pytesseract                # OCR（另需安装 Tesseract 可执行文件）
+# ldap3                      # LDAP 目录认证
+# pymilvus                   # Milvus 向量库后端（VECTOR_BACKEND=milvus）
+# elasticsearch              # Elasticsearch 关键词后端（KEYWORD_BACKEND=elasticsearch）
+# Langfuse 无需 SDK：配置 LANGFUSE_* 后走 HTTP ingestion（services/tracing.py）
+
+# ---- Agent ���̻� P0����ѡ��δ��װ�Զ������� ----
+# sqlalchemy[asyncio]>=2.0
+# asyncpg>=0.29
+# celery[redis]>=5.4
+# alembic>=1.13
+
